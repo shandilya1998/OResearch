@@ -9,7 +9,9 @@ demand = [
     [   
         int(random.uniform(10, 50)) for j in range(num_customers) 
     ] for i in range(num_products)
-] 
+]
+
+vehicle_type_capacity = [ int(random.uniform(1, 50)) for i in range(num_vehicle_types)]
 
 def get_random_time_window():
     ub = int(random.uniform(0, 1000))
@@ -33,18 +35,18 @@ params = {
     ],
     'travel_time' : [
         [
-            int(random.uniform(1, 30)) for j in range(num_customers)
-        ] for i in range(num_customers)
+            int(random.uniform(1, 30)) for j in range(num_customers+2)
+        ] for i in range(num_customers+2)
     ],
     'time_windows' : [
-        get_random_time_window for j in range(num_customers)
+        get_random_time_window for j in range(num_customers+2)
     ],
     'num_vehicles' : num_vehicles,
     'vehicle_capacity' : [
-        int(random.uniform(50, 250)) for i in range(num_vehicles)
+        random.sample(vehicle_type_capacity) for i in range(num_vehicles)
     ],
     'service_time' : [
-        int(random.uniform(1, 30)) for j in range(num_customers)
+        int(random.uniform(1, 30)) for j in range(num_customers+2)
     ],
     'processing_cost' : int(random.uniform(1, 50)),
     'setup_cost' : int(random.uniform(1, 50)),
