@@ -197,8 +197,8 @@ class MILP:
                 for h in range(self.params['num_customers']):
                     for v in range(self.params['num_vehicles']):
                         self.solver.Add(
-                            self.y[j][i][h][v] + \
-                            self.y[j][0][h][v] + \
+                            self.y[0][i][h][v] + \
+                            self.y[0][j][h][v] + \
                             self.u[i][h][v] + \
                             self.u[j][h][v] <= 3
                         )
@@ -264,6 +264,94 @@ class MILP:
         for h in range(self.params['num_customers'] - 1):
             self.solver.Add(
                 self.u[0][h][v] >= self.w[v]
+            )
+
+        for p in range(self.params['num_products']):
+            self.solver.Add(
+                sum([
+                    self.x[p][q] \
+                    if p != q else 0 \
+                    for q in range(self.params['num_products'])
+                ]) == 1
+            )
+
+        for q in range(self.params['num_products']):
+            self.solver.Add(
+                sum([
+                    self.x[p][q] \
+                    if p != q else 0 \
+                    for p in range(self.params['num_products'])
+                ])
+            )
+
+        for p in range(self.params['num_products']):
+            for q in range(self.params['num_prodcuts']):
+                self.solver.Add(
+                    self.x[p][q] <= 1 - self.x[q][p]
+                )
+
+        self.solver.Add(
+            sum([
+                sum([
+                        self.u[0][h][v] for h in range(
+                            self.params['num_customers']
+                        )
+                    ]) for v in range(self.params['num_vehicles'])
+            ]) == sum(
+                [self.d[f] for f in range(self.params['num_customers']
+            )])
+        )
+
+        for f in range(self.params['num_customers']-1):
+            self.solver.Add(
+                self.d[f] >= self.d[f+1]
+            )
+
+        for v in range(self.params['num_vehicles']):
+            for h in range(self.params['num_customers']):
+                self.solver.Add(
+                    sum([
+                        self.t[f][h][v] for f in range(self.params['num_customers'])
+                    ]) == self.u[0][h][v]
+                )
+
+        for f in range(self.params['num_customers']):
+            self.solver.Add(
+                self.d[f] == sum([
+                    sum([
+                        self.t[f][h][v] for h in range(self.params['num_customers'])
+                    ]) for v in range(self.params['num_vehicles'])
+                ])
+            )
+
+        for j in range(self.params['num_customers']+2):
+            self.solver.Add(
+                sum([
+                    self.b[j][f] for f in range(self.params['num_customers'])
+                ]) == 1
+            )
+
+        for f in range(self.params['num_customers']):
+            for j in range(1, self.params['num_customers']+1):
+                for h in range(self.params['num_customers']):
+                    for v in range(self.params['num_vehicles']):
+                        self.solver.Add(
+                            self.b[j][f] + 1 >= self.u[j][h][v] + self.t[f][h][v]
+                        )
+
+        for f in range(self.params['num_customers']):
+            for j in range(1, self.params['num_customers']+1):
+                for h in range(self.params['num_customers']):
+                    for v in range(self.params['num_vehicles']):
+                        self.solver.Add(
+                            self.t[f][h][v] + 1 >= self.b[j][f] + self.u[j][h][v]
+                        )
+
+        for f in range(self.params['num_customers']):
+            self.solver.Add(
+                sum([
+                    self.g[f_][f] for f_ in range(self.params['num_customers'])
+                ]) == self.d[f]
             )
 
         raise NotImplementedError
