@@ -22,6 +22,7 @@ class MILP:
             )
 
     def build(self):
+        print('Building Variables.......')
         self.s = [
             [ 
                 self.solver.IntVar(
@@ -165,9 +166,7 @@ class MILP:
             ) for v in range(self.params['num_vehicles'])
         ]
 
-        self.built = True
-
-    def set_constraints(self):
+        print('Building Constraints.....')
         for c in range(1, self.params['num_customers']+1):
             self.solver.Add(sum([sum(u_)] for u_ in self.u[:][:][c]) == 1)
 
@@ -233,7 +232,7 @@ class MILP:
                 for h in range(self.params['num_customers']):
                     for v in range(self.params['num_vehicles']):
                         self.solver.Add(
-                            self.u[v][h][i] >= self.y[i][j][h][v] + self.u[v][h][j] - 1
+                            self.u[v][h][i] >= self.y[v][h][j][i] + self.u[v][h][j] - 1
                         )
 
         for i in range(1, self.params['num_customers']+1):
@@ -241,7 +240,7 @@ class MILP:
                 for h in range(self.params['num_customers']):
                     for v in range(self.params['num_vehicles']):
                         self.solver.Add(
-                            self.u[v][h][j] >= self.y[i][j][h][v] + self.u[v][h][i] - 1
+                            self.u[v][h][j] >= self.y[v][h][j][i] + self.u[v][h][i] - 1
                         )
 
         for v in range(self.params['num_vehicles']):
@@ -391,9 +390,73 @@ class MILP:
                         ]) - self.params['M'] * (1- self.g[f][f_]) <= self.c[p][f_]
                     )
 
-        
+        for i in range(1, self.params['num_customers']+1):
+            for j in range(1, self.params['num_customers']+1):
+                for h in range(self.params['num_customers']):
+                    for v in range(self.params['num_vehicles']):
+                        self.solver.Add(
+                            self.a[j][v][h] == self.st[v][h] + \
+                                self.params['service_time'] + \
+                                self.params['travel_time'] - \
+                                self.params['M'] * (1 - self.u[v][h][j])
+                        )
 
+                        self.solver.Add(
+                            self.a[j][v][h] >= self.a[i][v][h] + \
+                                self.params['service_time'][i] + \
+                                self.params['travel_time'][i][j] - \
+                                self.params['M'] * (1 - self.y[v][h][j][i])
+                        )
+
+        for p in range(self.params['num_products']):
+            for v in range(self.params['num_vehicles']):
+                for f in range(self.params['num_customers']):
+                    self.solver.Add(
+                        self.st[v][1] >= self.c[p][f] + \
+                            self.params['service_time'][0] - \
+                            self.params['M'] * ( self.t[v][1][f])
+                    )
+
+        for p in range(self.params['num_products']):
+            for f in range(self.params['num_customers']):
+                for v in range(self.params['num_vehicles'):
+                    for h in range(self.params['num_customers'] - 1):
+                        self.solver.Add(
+                            self.st[v][h+1] >= self.a[
+                                self.params['num_customers'] + 1
+                            ][v][h] + self.params['service_time'][
+                                self.params['num_customers'] + 1
+                            ] and self.a[
+                                self.params['num_customers']+1
+                            ][v][h] < self.c[p][f]
+                        )
+    
+                        self.solver.Add(
+                            self.st[v][h+1] >= self.c[p][f] + \
+                                self.params['service_time'][0] - \
+                                self.params['M'] * (1 - self.t[v][h+1][f])
+                        )
+
+        for j in range(1, self.params['num_customers'] + 1):
+            for v in range(self.params['num_vehicles']):
+                for h in range(self.params['num_customers']):
+                    self.solver.Add(
+                        self.e[j][v][h] >= self.params[
+                            'time_windows'
+                        ][j][0] - self.a[j][v][h]
+                    )
+
+                    self.solver.Add(
+                        self.l[j][v][h] >= self.a[j][v][h] - self.params[
+                            'time_windows'
+                        ][j][0]
+                    ) 
+        
+        print('Building Objective.......')
         raise NotImplementedError
+
+    def num_variables(self):
+        return self.solver.NumVariables()
 
     def set_objective(self):
         raise NotImplementedError
