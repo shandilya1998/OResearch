@@ -13,6 +13,8 @@ demand = [
 
 vehicle_type_capacity = [ int(random.uniform(1, 50)) for i in range(num_vehicle_types)]
 
+vehicle_type_cost = [ int(random.uniform(1, 50)) for i in range(num_vehicle_types)]
+
 def get_random_time_window():
     ub = int(random.uniform(0, 1000))
     lb = int(random.uniform(0, ub))
@@ -54,7 +56,7 @@ params = {
     'early_delivery_penalty' : int(random.uniform(1, 50)),
     'late_delivery_penalty' : int(random.uniform(1, 50)),
     'vehicle_cost' : [
-        int(random.uniform(1, 50)) for i in range(num_vehicle_types)
+        random.sample(vehicle_type_cost) for i in range(num_vehicles)
     ],
     'vehicle_type' : [
         random.randint(0, num_vehicle_types) for i in range(num_vehicles)

@@ -453,13 +453,61 @@ class MILP:
                     ) 
         
         print('Building Objective.......')
-        raise NotImplementedError
+
+        self.solver.Minimize(
+            self.params['processing_cost'] * sum([
+                sum([ 
+                    self.params['process_time'][p] * \
+                    self.params['demand'][p][j] for p in range(
+                        self.params['num_products']
+                    )
+                ]) for j in range(1, self.params['customers']+1)
+            ]) + self.params['setup_cost'] * sum([
+                sum([
+                    self.params['setup_time'][p][q] * \
+                    self.x[p][q] for q in range(self.params['num_products'])
+                ]) for p in range(self.params['num_products'])
+            ]) + self.params['travel_cost'] * sum([
+                sum([
+                    sum([
+                        sum([
+                            self.params['travel_time'][i][j] * \
+                            self.y[v][h][j][i] for i in range(
+                                1, 
+                                self.params['num_customers'] + 1
+                            )
+                        ]) for j in range(1, self.params['num_customers']+1)
+                    ]) for h in range(self.params['num_customers'])
+                ]) for v in range(self.params['num_vehicles'])  
+            ]) + sum([
+                self.params['vehicle_cost'][v] * self.w[v] \
+                for v in range(self.params['num_vehicles'])
+            ]) + self.params['early_delivery_penalty'] * sum([
+                sum([
+                    sum([
+                        self.e[j][v][h] for j in range(
+                            1, 
+                            self.params['num_customers'] + 1
+                        )
+                    ]) for h in range(self.params['num_customers'])
+                ]) for v in range(self.params['num_vehicles'])
+            ]) + self.params['late_delivery_penalty'] * sum([
+                sum([
+                    sum([
+                        self.l[j][v][h] for j in range(
+                            1,  
+                            self.params['num_customers'] + 1 
+                        )   
+                    ]) for h in range(self.params['num_customers'])
+                ]) for v in range(self.params['num_vehicles'])
+            ])
+        )
+
+        self.built = True
+        print('Building Done............')
 
     def num_variables(self):
         return self.solver.NumVariables()
-
-    def set_objective(self):
-        raise NotImplementedError
 
     def solve(self):
         status = self.solver.Solve()
