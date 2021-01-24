@@ -6,7 +6,7 @@ data_path = 'data'
 travel_time = pd.read_csv(
     os.path.join(data_path, 'travel_time.csv'),
     header = None
-)
+).values.tolist()
 vehicles = pd.read_csv(os.path.join(output_path, 'vehicles.csv'))
 vehicle_type_cost = vehicles['cost'].values.tolist()
 vehivle_type_capacity = vehicles['capacity'].values.tolist()
@@ -26,14 +26,44 @@ demand = [
     ] for i in range(num_products)
 ]
 
-def get_time_window():
-    ub = int(random.uniform(0, 50))
-    lb = int(random.uniform(0, ub))
-    if lb != ub:
-        return [lb, ub]
-    else:
-        return get_time_window()
+process_time = [
+    int(random.uniform(1, 5)) for i in range(num_products)
+]
 
+service_time = [
+    int(random.uniform(1, 30)) \
+    if j != 0 or j == num_custoemers + 1 \
+    else 0 \
+    for j in range(num_customers + 2)
+]
+
+lower = pd.read_csv(
+    os.path.join(
+        data_path, 
+        'lower_time_limit.csv'
+    )
+)['lower_limit'].values.tolist()
+time_window = []
+upper = 0
+max_up = 0
+index = 0
+for i in range(num_customers + 2):
+    if i == 0 or num_customers + 1:
+        time_window.append([0, 0])
+    else:
+        upper =  sum([
+            demand[p][i-1]*process_time[p] for p in range(num_products)
+        ])
+        time_window.append([
+            lower[i - 1],
+            lower[i - 1] + 10 + upper
+        ])
+        if upper > max_up:
+            max_up = upper
+            index = i
+
+time_window[0][1] = max_up + travel_time[0][index] + 10
+time_window[num_customers + 1][1] = max_up + travel_time[0][index] + 10
 
 params = {
     'num_customers': num_customers,
@@ -46,18 +76,12 @@ params = {
             int(random.uniform(1, 10)) for j in range(num_products)
         ] for i in range(num_products)
     ],
-    'process_time': [
-        int(random.uniform(1, 5)) for i in range(num_products)
-    ],
-    'travel_time': travel_time.reset_index().values.tolist(),
-    'time_windows': [
-        get_time_window() for j in range(num_customers + 2)
-    ],
+    'process_time': process_time,
+    'travel_time': travel_time,
+    'time_windows': time_windows,
     'num_vehicles': num_vehicles,
     'vehicle_capacity': [vehicle_type_capacity[t] for t in vehicle_type],
-    'service_time': [
-        int(random.uniform(1, 30)) for j in range(num_customers + 2)
-    ],
+    'service_time': service_time,
     'processing_cost': 5,
     'setup_cost': 10,
     'travel_cost': 15),
@@ -65,5 +89,5 @@ params = {
     'late_delivery_penalty': 4,
     'vehicle_cost': [vehicle_type_cost[t] for t in vehicle_type],
     'vehicle_type': vehicle_type,
-    'M': 1e10,
+    'M': 1e4,
 }
