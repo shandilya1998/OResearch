@@ -7,15 +7,23 @@ travel_time = pd.read_csv(
     os.path.join(data_path, 'travel_time.csv'),
     header = None
 ).values.tolist()
-vehicles = pd.read_csv(os.path.join(output_path, 'vehicles.csv'))
+vehicles = pd.read_csv(os.path.join(data_path, 'vehicles.csv'))
 vehicle_type_cost = vehicles['cost'].values.tolist()
-vehivle_type_capacity = vehicles['capacity'].values.tolist()
-vehicle_type = pd.read_csv(os.path.join(data_path, 'travel_type.csv'))
+vehicle_type_capacity = vehicles['capacity'].values.tolist()
+vehicle_type = pd.read_csv(os.path.join(data_path, 'vehicle_type.csv'))
 vehicle_type = vehicle_type['type'].values.tolist()
 meta = pd.read_csv(os.path.join(data_path, 'meta.csv'))
 
 num_products = meta['products'][0] #random.randint(0, 5)
 num_customers = meta['customers'][0]
+print('-------------------')
+print('Number of Products:')
+print(num_products)
+print('-------------------')
+print('-------------------')
+print('Number of Customers:')
+print(num_customers)
+print('-------------------')
 num_trips = num_customers
 num_batches = num_customers
 num_vehicle_types = len(vehicle_type_cost) # random.randint(0, 8)
@@ -32,7 +40,7 @@ process_time = [
 
 service_time = [
     int(random.uniform(1, 30)) \
-    if j != 0 or j == num_custoemers + 1 \
+    if j != 0 or j == num_customers + 1 \
     else 0 \
     for j in range(num_customers + 2)
 ]
@@ -43,18 +51,18 @@ lower = pd.read_csv(
         'lower_time_limit.csv'
     )
 )['lower_limit'].values.tolist()
-time_window = []
+time_windows = []
 upper = 0
 max_up = 0
 index = 0
 for i in range(num_customers + 2):
     if i == 0 or num_customers + 1:
-        time_window.append([0, 0])
+        time_windows.append([0, 0])
     else:
         upper =  sum([
             demand[p][i-1]*process_time[p] for p in range(num_products)
-        ])
-        time_window.append([
+        ]) + service_time[i]
+        time_windows.append([
             lower[i - 1],
             lower[i - 1] + 10 + upper
         ])
@@ -62,8 +70,8 @@ for i in range(num_customers + 2):
             max_up = upper
             index = i
 
-time_window[0][1] = max_up + travel_time[0][index] + 10
-time_window[num_customers + 1][1] = max_up + travel_time[0][index] + 10
+time_windows[0][1] = max_up + travel_time[0][index] + 10
+time_windows[num_customers + 1][1] = max_up + travel_time[0][index] + 10
 
 params = {
     'num_customers': num_customers,
@@ -84,7 +92,7 @@ params = {
     'service_time': service_time,
     'processing_cost': 5,
     'setup_cost': 10,
-    'travel_cost': 15),
+    'travel_cost': 15,
     'early_delivery_penalty': 2,
     'late_delivery_penalty': 4,
     'vehicle_cost': [vehicle_type_cost[t] for t in vehicle_type],
