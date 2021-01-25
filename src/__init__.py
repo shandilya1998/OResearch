@@ -7,6 +7,10 @@ def run(
         params
     )   
     milp.build()
+    print('-------------------')
+    print('Number of Variables:')
+    print(milp.num_variables())
+    print('-------------------')
     status = milp.solve()
     print('Solver Status')
     print(status)

@@ -31,7 +31,7 @@ num_vehicle_types = len(vehicle_type_cost) # random.randint(0, 8)
 num_vehicles = len(vehicle_type)
 demand = np.array([
     [
-        int(random.uniform(10, 50)) for j in range(num_customers)
+        int(random.uniform(10, 200)) for j in range(num_customers)
     ] for i in range(num_products)
 ])
 

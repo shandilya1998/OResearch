@@ -120,6 +120,8 @@ class MILP:
                 self.w[v] for v in range(self.params['num_vehicles'])
             ]
         }
+        return solution
+
     def build(self):
         print('Building Variables', end = '')
         self.s = np.array([
@@ -341,8 +343,9 @@ class MILP:
                 self.solver.Add(
                     self.params['M']*(
                         np.sum(self.u, -1)[v][h] - \
-                            self.u[v][h][0]) >= np.sum(self.u, -1)[v][h+1] - \
-                            self.v[v][h+1][0]
+                            self.u[v][h][0]) >= \
+                            np.sum(self.u, -1)[v][h+1] - \
+                            self.u[v][h+1][0]
                 )
         print('.', end = '')
         for v in range(self.params['num_vehicles']):
@@ -424,7 +427,7 @@ class MILP:
             for f in range(self.params['num_batches']):
                 self.solver.Add(
                     np.sum(
-                        self.params['setup_time'][p_][q_] * self.x[p_][q_],
+                        self.params['setup_time'] * self.x,
                         (0, 1)
                     ) + sum([
                         sum([
@@ -441,7 +444,7 @@ class MILP:
                 for f_ in range(self.params['num_batches']):
                     self.solver.Add(
                         self.s[p][f] + np.sum(
-                            self.params['setup_time'][p_][q_] * self.x[p_][q_],
+                            self.params['setup_time'] * self.x,
                             (0, 1)
                         ) + sum([
                             sum([
