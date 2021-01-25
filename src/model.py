@@ -122,7 +122,7 @@ class MILP:
         }
     def build(self):
         print('Building Variables', end = '')
-        self.s = [
+        self.s = np.array([
             [
                 self.solver.IntVar(
                     0.0,
@@ -130,9 +130,9 @@ class MILP:
                     'start time product `{i}` batch `{j}`'.format(i=i, j=j)
                 ) for j in range(self.params['num_batches'])
             ] for i in range(self.params['num_products'])
-        ]
+        ])
         print('.', end = '')
-        self.c = [
+        self.c = np.array([
             [
                 self.solver.IntVar(
                     0.0,
@@ -140,9 +140,9 @@ class MILP:
                     'completion time product {i} batch {j}'.format(i=i, j=j)
                 ) for j in range(self.params['num_batches'])
             ] for i in range(self.params['num_products'])
-        ]
+        ])
         print('.', end = '')
-        self.st = [
+        self.st = np.array([
             [
                 self.solver.IntVar(
                     0.0,
@@ -150,9 +150,9 @@ class MILP:
                     'delivery start time vehicle {v} trip {h}'.format(v=v, h=h)
                 ) for h in range(self.params['num_trips'])
             ] for v in range(self.params['num_vehicles'])
-        ]
+        ])
         print('.', end = '')
-        self.a = [
+        self.a = np.array([
             [
                 [
                     self.solver.IntVar(
@@ -163,9 +163,9 @@ class MILP:
                     ) for h in range(self.params['num_trips'])
                 ] for v in range(self.params['num_vehicles'])
             ] for j in range(self.params['num_customers'] + 2)
-        ]
+        ])
         print('.', end = '')
-        self.e = [
+        self.e = np.array([
             [
                 [
                     self.solver.IntVar(
@@ -176,9 +176,9 @@ class MILP:
                     ) for h in range(self.params['num_trips'])
                 ] for v in range(self.params['num_vehicles'])
             ] for j in range(self.params['num_customers'] + 2)
-        ]
+        ])
         print('.', end = '')
-        self.l = [
+        self.l = np.array([
             [
                 [
                     self.solver.IntVar(
@@ -189,41 +189,41 @@ class MILP:
                     ) for h in range(self.params['num_trips'])
                 ] for v in range(self.params['num_vehicles'])
             ] for j in range(self.params['num_customers'] + 2)
-        ]
+        ])
         print('.', end = '')
-        self.x = [
+        self.x = np.array([
             [
                 self.solver.BoolVar(
                     'production transition from product {p} to product {q}'.format(
                         p=p, q=q)
                 ) for q in range(self.params['num_products'])
             ] for p in range(self.params['num_products'])
-        ]
+        ])
         print('.', end = '')
-        self.b = [
+        self.b = np.array([
             [
                 self.solver.BoolVar(
                     'order production customer {c} batch {f}'
                 ) for f in range(self.params['num_batches'])
             ] for c in range(self.params['num_customers'] + 2)
-        ]
+        ])
         print('.', end = '')
-        self.d = [
+        self.d = np.array([
             self.solver.BoolVar(
                 'batch activity {f}'.format(f=f)
             ) for f in range(self.params['num_batches'])
-        ]
+        ])
         print('.', end = '')
-        self.g = [
+        self.g = np.array([
             [
                 self.solver.BoolVar(
                     'production transition from batch {p} to batch {q}'.format(
                         p=p, q=q)
                 ) for q in range(self.params['num_batches'])
             ] for p in range(self.params['num_batches'])
-        ]
+        ])
         print('.', end = '')
-        self.t = [
+        self.t = np.array([
             [
                 [
                     self.solver.BoolVar(
@@ -235,9 +235,9 @@ class MILP:
                     ) for b in range(self.params['num_batches'])
                 ] for t in range(self.params['num_trips'])
             ] for v in range(self.params['num_vehicles'])
-        ]
+        ])
         print('.', end = '')
-        self.u = [
+        self.u = np.array([
             [
                 [
                     self.solver.BoolVar(
@@ -249,9 +249,9 @@ class MILP:
                     ) for i in range(self.params['num_customers'] + 2)
                 ] for t in range(self.params['num_trips'])
             ] for v in range(self.params['num_vehicles'])
-        ]
+        ])
         print('.', end = '')
-        self.y = [
+        self.y = np.array([
             [
                 [
                     [
@@ -266,23 +266,17 @@ class MILP:
                     ] for j in range(self.params['num_customers'] + 2)
                 ] for t in range(self.params['num_trips'])
             ] for v in range(self.params['num_vehicles'])
-        ]
+        ])
         print('.', end = '')
-        self.w = [
+        self.w = np.array([
             self.solver.BoolVar(
                 'vehicle {v} usage'.format(v=v)
             ) for v in range(self.params['num_vehicles'])
-        ]
+        ])
         print('.')
         print('Building Constraints', end = '')
         for c in range(1, self.params['num_customers'] + 1):
-            self.solver.Add(
-                sum([
-                    sum([
-                        self.u[v][h][c] \
-                        for h in range(self.params['num_trips'])
-                    ]) for v in range(self.params['num_vehicles'])
-                ]) == 1)
+            self.solver.Add(np.sum(self.u, (0, 1))[c] == 1)
         print('.', end = '')
         for j in range(self.params['num_customers'] + 2):
             for h in range(self.params['num_trips']):
@@ -316,31 +310,12 @@ class MILP:
             for h in range(self.params['num_trips']):
                 for v in range(self.params['num_vehicles']):
                     self.solver.Add(
-                        self.u[v][h][j] == sum(
-                            [
-                                self.y[v][h][j][i] if i!= 0 \
-                                else 0.0 \
-                                for i in range(
-                                    self.params['num_customers'] + 1
-                                ) 
-                            ]
-                        )
+                        self.u[v][h][j] == np.sum(self.y, -1)[v][h][j] - \
+                            self.y[v][h][j][self.params['num_customers']]
                     )
-        print('.', end = '')
-        for j in range(1, self.params['num_customers']+1):
-            for h in range(self.params['num_trips']):
-                for v in range(self.params['num_vehicles']):
                     self.solver.Add(
-                        self.u[v][h][j] == sum(
-                            [
-                                self.y[v][h][i][j] if i!= 0 \
-                                else 0.0 \
-                                for i in range(
-                                    1, 
-                                    self.params['num_customers'] + 2
-                                )
-                            ]
-                        )
+                        self.u[v][h][j] == np.sum(self.y, -1)[v][h][j] - \
+                            self.y[v][h][j][0]
                     )
         print('.', end = '')
         for i in range(1, self.params['num_customers']+1):
@@ -364,17 +339,10 @@ class MILP:
         for v in range(self.params['num_vehicles']):
             for h in range(self.params['num_trips'] - 1):
                 self.solver.Add(
-                    self.params['M']*sum([
-                        self.u[v][h][j] for j in range(
-                            1,
-                            self.params['num_customers'] + 1
-                        )
-                    ]) >= sum([
-                        self.u[v][h+1][j] for j in range(
-                            1,
-                            self.params['num_customers'] + 1
-                        )
-                    ])
+                    self.params['M']*(
+                        np.sum(self.u, -1)[v][h] - \
+                            self.u[v][h][0]) >= np.sum(self.u, -1)[v][h+1] - \
+                            self.v[v][h+1][0]
                 )
         print('.', end = '')
         for v in range(self.params['num_vehicles']):
@@ -385,20 +353,12 @@ class MILP:
         print('.', end = '')
         for p in range(self.params['num_products']):
             self.solver.Add(
-                sum([
-                    self.x[p][q] \
-                    if p != q else 0 \
-                    for q in range(self.params['num_products'])
-                ]) == 1
+                np.sum(self.x, -1)[p] - self.x[p][p] == 1
             )
         print('.', end = '')
         for q in range(self.params['num_products']):
             self.solver.Add(
-                sum([
-                    self.x[p][q] \
-                    if p != q else 0 \
-                    for p in range(self.params['num_products'])
-                ]) == 1
+                np.sum(self.x, 0)[q] - self.x[q][q] == 1
             )
         print('.', end = '')
         for p in range(self.params['num_products']):
@@ -408,15 +368,7 @@ class MILP:
                 )
         print('.', end = '')
         self.solver.Add(
-            sum([
-                sum([
-                        self.u[v][h][0] for h in range(
-                            self.params['num_customers']
-                        )
-                    ]) for v in range(self.params['num_vehicles'])
-            ]) == sum(
-                [self.d[f] for f in range(self.params['num_batches']
-            )])
+            np.sum(self.u, (0, 1))[0] == np.sum(self.d, 0)
         )
         print('.', end = '')
         for f in range(self.params['num_batches']-1):
@@ -427,18 +379,12 @@ class MILP:
         for v in range(self.params['num_vehicles']):
             for h in range(self.params['num_trips']):
                 self.solver.Add(
-                    sum([
-                        self.t[v][h][f] for f in range(self.params['num_batches'])
-                    ]) == self.u[v][h][0]
+                    np.sum(self.t, -1)[v][h] == self.u[v][h][0]
                 )
         print('.', end = '')
         for f in range(self.params['num_batches']):
             self.solver.Add(
-                self.d[f] == sum([
-                    sum([
-                        self.t[v][h][f] for h in range(self.params['num_trips'])
-                    ]) for v in range(self.params['num_vehicles'])
-                ])
+                self.d[f] == np.sum(self.t, (0, 1))[f]
             )
         print('.', end = '')
         for j in range(self.params['num_customers']+2):
@@ -453,7 +399,8 @@ class MILP:
                 for h in range(self.params['num_trips']):
                     for v in range(self.params['num_vehicles']):
                         self.solver.Add(
-                            self.b[j][f] + 1 >= self.u[v][h][j] + self.t[v][h][f]
+                            self.b[j][f] + 1 >= self.u[v][h][j] + \
+                                self.t[v][h][f]
                         )
         print('.', end = '')
         for f in range(self.params['num_customers']):
@@ -467,21 +414,19 @@ class MILP:
         print('.', end = '')
         for f in range(self.params['num_batches']):
             self.solver.Add(
-                sum([
-                    self.g[f_][f] for f_ in range(self.params['num_batches'])
-                ]) == self.d[f]
+                np.sum(self.g, 0)[f] == self.d[f]
+            )
+            self.solver.Add(
+                np.sum(self.g, 1)[f] == self.d[f]
             )
         print('.', end = '')
         for p in range(self.params['num_products']):
             for f in range(self.params['num_batches']):
                 self.solver.Add(
-                    sum([
-                        sum([
-                            self.params['setup_time'][p_][q_] * \
-                            self.x[p_][q_] \
-                            for q_ in range(self.params['num_products'])
-                        ]) for p_ in range(self.params['num_products'])
-                    ]) + sum([
+                    np.sum(
+                        self.params['setup_time'][p_][q_] * self.x[p_][q_],
+                        (0, 1)
+                    ) + sum([
                         sum([
                             self.params['process_time'][p_] * \
                             self.params['demand'][p_][j] * \
@@ -495,13 +440,10 @@ class MILP:
             for f in range(self.params['num_batches']):
                 for f_ in range(self.params['num_batches']):
                     self.solver.Add(
-                        self.s[p][f] + sum([
-                            sum([
-                                self.params['setup_time'][p_][q_] * \
-                                self.x[p_][q_] \
-                                for q_ in range(self.params['num_products'])
-                            ]) for p_ in range(self.params['num_products'])
-                        ]) + sum([
+                        self.s[p][f] + np.sum(
+                            self.params['setup_time'][p_][q_] * self.x[p_][q_],
+                            (0, 1)
+                        ) + sum([
                             sum([
                                 self.params['process_time'][p_] * \
                                 self.params['demand'][p_][j] * \
