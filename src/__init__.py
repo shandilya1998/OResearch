@@ -1,10 +1,13 @@
 from src import model, constants
 
 def run(
-    params
+    params,
+    solver = None
 ):
+    print('Running MIP model')
     milp = model.MILP(
-        params
+        params,
+        solver
     )   
     milp.build()
     print('-------------------')
@@ -14,7 +17,7 @@ def run(
     status = milp.solve()
     print('Solver Status')
     print(status)
-    return milp.get_solution()
+    return milp.get_solution(), milp
 
 if __name__ == '__main__':
     run(
