@@ -8,6 +8,7 @@ travel_time = pd.read_csv(
     os.path.join(data_path, 'travel_time.csv'),
     header = None
 ).values
+print(travel_time[1:-1, 1:-1].shape)
 vehicles = pd.read_csv(os.path.join(data_path, 'vehicles.csv'))
 vehicle_type_cost = vehicles['cost'].values
 vehicle_type_capacity = vehicles['capacity'].values
@@ -31,12 +32,12 @@ num_vehicle_types = len(vehicle_type_cost) # random.randint(0, 8)
 num_vehicles = len(vehicle_type)
 demand = np.array([
     [
-        int(random.uniform(10, 200)) for j in range(num_customers)
-    ] for i in range(num_products)
+        int(random.uniform(10, 200)) for p in range(num_products)
+    ] for i in range(num_customers)
 ])
 
 process_time = np.array([
-    int(random.uniform(1, 5)) for i in range(num_products)
+    int(random.uniform(1, 5)) for p in range(num_products)
 ])
 
 service_time = np.array([
@@ -83,8 +84,8 @@ params = {
     'demand': demand,
     'setup_time': np.array([
         [
-            int(random.uniform(1, 10)) for j in range(num_products)
-        ] for i in range(num_products)
+            int(random.uniform(1, 10)) for q in range(num_products)
+        ] for p in range(num_products)
     ]),
     'process_time': process_time,
     'travel_time': travel_time,

@@ -4,6 +4,11 @@ import os
 
 output_path = 'outputs'
 
-solution = src.run(
+"""
+    Next run experiments to compare Linear Programming solver and MIP
+    solver
+"""
+
+milp = src.run(
     src.constants.params
 )
