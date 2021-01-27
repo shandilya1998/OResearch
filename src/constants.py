@@ -104,4 +104,5 @@ params = {
     ),
     'vehicle_type': vehicle_type,
     'M': 1e4,
+    'large_int' : 1e8
 }
