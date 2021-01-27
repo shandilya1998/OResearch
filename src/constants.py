@@ -8,7 +8,6 @@ travel_time = pd.read_csv(
     os.path.join(data_path, 'travel_time.csv'),
     header = None
 ).values
-print(travel_time[1:-1, 1:-1].shape)
 vehicles = pd.read_csv(os.path.join(data_path, 'vehicles.csv'))
 vehicle_type_cost = vehicles['cost'].values
 vehicle_type_capacity = vehicles['capacity'].values
@@ -18,14 +17,14 @@ meta = pd.read_csv(os.path.join(data_path, 'meta.csv'))
 
 num_products = meta['products'][0] #random.randint(0, 5)
 num_customers = meta['customers'][0]
-print('-------------------')
+print('---------------------')
 print('Number of Products:')
 print(num_products)
-print('-------------------')
-print('-------------------')
+print('---------------------')
+print('---------------------')
 print('Number of Customers:')
 print(num_customers)
-print('-------------------')
+print('---------------------')
 num_trips = num_customers
 num_batches = num_customers
 num_vehicle_types = len(vehicle_type_cost) # random.randint(0, 8)

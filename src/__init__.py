@@ -10,10 +10,10 @@ def run(
         solver
     )   
     milp.build()
-    print('-------------------')
+    print('---------------------')
     print('Number of Variables:')
     print(milp.num_variables())
-    print('-------------------')
+    print('---------------------')
     status = milp.solve()
     print('Solver Status')
     print(status)
