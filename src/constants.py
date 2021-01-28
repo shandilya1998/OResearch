@@ -14,7 +14,7 @@ def get_params(data_type):
     vehicle_type_cost = vehicles['cost'].values.astype(data_type)
     vehicle_type_capacity = vehicles['capacity'].values.astype(data_type)
     vehicle_type = pd.read_csv(os.path.join(data_path, 'vehicle_type.csv'))
-    vehicle_type = vehicle_type['type'].values.astype(data_type)
+    vehicle_type = vehicle_type['type'].values.astype(int)
     meta = pd.read_csv(os.path.join(data_path, 'meta.csv'))
 
     num_products = meta['products'][0] #random.randint(0, 5)
@@ -34,19 +34,22 @@ def get_params(data_type):
     demand = np.array([
         [
             random.uniform(10, 200) for p in range(num_products)
-        ] for i in range(num_customers)
-    ]).astype(data_type)
+        ] for i in range(num_customers + 2)
+    ])
+    for p in range(num_products):
+        demand[0][p] = 0
+        demand[num_customers + 1] = 0
+    demand = demand.astype(np.int32)
 
     process_time = np.array([
         random.uniform(1, 5) for p in range(num_products)
     ]).astype(data_type)
 
-    service_time = np.array([
-        int(random.uniform(1, 30)) \
-        if j != 0 or j == num_customers + 1 \
-        else 0 \
-        for j in range(num_customers + 2)
-    ]).astype(data_type)
+    service_time_coef = 0.2
+    service_time = service_time_coef * np.sum(demand, -1).astype(data_type)
+    service_time[0] = 10
+    service_time[num_customers + 1] = 10
+    service_time = service_time.astype(data_type)
 
     lower = pd.read_csv(
         os.path.join(
@@ -105,7 +108,7 @@ def get_params(data_type):
             [vehicle_type_cost[t] for t in vehicle_type]
         ),
         'vehicle_type': vehicle_type,
-        'M': int(1e4),
-        'large_int' : int(1e5)
+        'M': data_type(1e4),
+        'large_int' : data_type(1e5)
     }
     return params

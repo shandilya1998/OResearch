@@ -9,7 +9,7 @@ output_path = 'outputs'
     solver
 """
 params = None
-model = 'CPSAT'
+model = 'MILP'
 if model == 'CPSAT':
     params = src.constants.get_params(int)
 elif model == 'MILP' or model == 'LP':

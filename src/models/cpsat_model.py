@@ -306,9 +306,12 @@ class CPSATModel:
                     sum([
                         sum([
                             self.params['demand'][j][p] * \
-                            self.u[j+1][v][h] \
+                            self.u[j][v][h] \
                             for p in range(self.params['num_products'])
-                        ]) for j in range(self.params['num_customers'])
+                        ]) for j in range(
+                            1, 
+                            self.params['num_customers'] + 1
+                        )
                     ]) <= self.params['vehicle_capacity'][v]
                 )
         for i in range(1, self.params['num_customers'] + 1):
@@ -350,8 +353,12 @@ class CPSATModel:
             for h in range(self.params['num_trips'] - 1):
                 self.model.Add(
                     self.params['M']*(
-                        np.sum(self.u, 0)[v][h] - self.u[0][v][h]
-                    ) >= np.sum(self.u, 0)[v][h+1] - self.u[0][v][h+1]
+                        np.sum(self.u, 0)[v][h] - \
+                        self.u[0][v][h] - \
+                        self.u[self.params['num_customers'] + 1][v][h]
+                    ) >= np.sum(self.u, 0)[v][h + 1] - \
+                        self.u[0][v][h + 1] - \
+                        self.u[self.params['num_customers'] + 1][v][h + 1]
                 )
         for v in range(self.params['num_vehicles']):
             for h in range(self.params['num_trips']):
@@ -422,8 +429,11 @@ class CPSATModel:
                         sum([
                             self.params['process_time'][q] * \
                             self.params['demand'][j][q] * \
-                            self.b[j+1][f] \
-                            for j in range(self.params['num_customers'])
+                            self.b[j][f] \
+                            for j in range(
+                                1, 
+                                self.params['num_customers'] + 1
+                            )
                         ]) for q in range(self.params['num_products'])
                     ]) - self.params['M'] * (1- self.g[0][f]) <= \
                         self.c[p][f]
@@ -437,9 +447,10 @@ class CPSATModel:
                             sum([
                                 self.params['process_time'][q] * \
                                 self.params['demand'][j][q] * \
-                                self.b[j+1][f] \
+                                self.b[j][f] \
                                 for j in range(
-                                    self.params['num_customers']
+                                    1,
+                                    self.params['num_customers'] + 1
                                 )
                             ]) for q in range(self.params['num_products'])
                         ]) - self.params['M'] * (1 - self.g[f][f_]) <= \
@@ -499,7 +510,7 @@ class CPSATModel:
                         self.l[j][v][h] >= self.a[j][v][h] - self.params[
                             'time_windows'
                         ][j][1]
-                    )
+                    ) 
         print('Building Objective.')
 
         self.model.Minimize(
