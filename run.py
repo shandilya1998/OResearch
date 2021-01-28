@@ -8,7 +8,14 @@ output_path = 'outputs'
     Next run experiments to compare Linear Programming solver and MIP
     solver
 """
+params = None
+model = 'CPSAT'
+if model == 'CPSAT':
+    params = src.constants.get_params(int)
+elif model == 'MILP' or model == 'LP':
+    params = src.constants.get_params(float)
 
-milp = src.run(
-    src.constants.params
+solver = src.run(
+    params,
+    model
 )

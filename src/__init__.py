@@ -1,4 +1,4 @@
-from src import model, constants
+from src import models, constants
 
 def run(
     params,
@@ -6,7 +6,7 @@ def run(
 ):
     if solver == 'MILP' or solver == 'LP':
         print('Running model')
-        solver = model.Model(
+        solver = models.Model(
             params,
             solver
         )   
@@ -22,7 +22,7 @@ def run(
 
     elif solver == 'CPSAT':
         print('Running Model')
-        solver = model.CPSATModel(
+        solver = models.CPSATModel(
             params
         )
         solver.build()
