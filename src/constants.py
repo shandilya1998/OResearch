@@ -4,18 +4,24 @@ import os
 import numpy as np
 
 
+TRAVEL_TIME = 'travel_time_full.csv'
+VEHICLES = 'vehicles.csv'
+VEHICLE_TYPE = 'vehicle_type.csv'
+META = 'meta_full.csv'
+LOWER_TIME_LIMIT = 'lower_time_limit_full.csv'
+
 def get_params(data_type):
     data_path = 'data'
     travel_time = pd.read_csv(
-        os.path.join(data_path, 'travel_time.csv'),
+        os.path.join(data_path, TRAVEL_TIME),
         header = None
     ).values.astype(data_type)
-    vehicles = pd.read_csv(os.path.join(data_path, 'vehicles.csv'))
+    vehicles = pd.read_csv(os.path.join(data_path, VEHICLES))
     vehicle_type_cost = vehicles['cost'].values.astype(data_type)
     vehicle_type_capacity = vehicles['capacity'].values.astype(data_type)
-    vehicle_type = pd.read_csv(os.path.join(data_path, 'vehicle_type.csv'))
+    vehicle_type = pd.read_csv(os.path.join(data_path, VEHICLE_TYPE))
     vehicle_type = vehicle_type['type'].values.astype(int)
-    meta = pd.read_csv(os.path.join(data_path, 'meta.csv'))
+    meta = pd.read_csv(os.path.join(data_path, META))
 
     num_products = meta['products'][0] #random.randint(0, 5)
     num_customers = meta['customers'][0]
@@ -54,7 +60,7 @@ def get_params(data_type):
     lower = pd.read_csv(
         os.path.join(
             data_path,
-            'lower_time_limit.csv'
+            LOWER_TIME_LIMIT
         )
     )['lower_limit'].values.astype(data_type)
     time_windows = []

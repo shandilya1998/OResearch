@@ -15,8 +15,8 @@ class Model:
             self.solver = pywraplp.Solver.CreateSolver('GLOP')
             self.Var = self.solver.NumVar
         else:
-            raise ValueError('Expected one of MILP or LP solvers\
-                , but got {s}'.format(s = solver))
+            raise ValueError('Expected one of MILP or LP solvers, \
+                but got {s}'.format(s = solver))
         self.infinity = self.solver.infinity()
         self.built = False
         if self.params['num_vehicles'] > self.params['num_customers']:
@@ -528,9 +528,14 @@ class Model:
             self.params['processing_cost'] * np.sum(
                 self.params['process_time'] * self.params['demand']    
             ) + \
-            self.params['setup_cost'] * np.sum(
-                self.params['setup_time'] * self.x
-            ) + \
+            self.params['setup_cost'] * sum([
+                sum([
+                    self.params['setup_time'][p][q] * self.x[p][q] \
+                    if p!=q \
+                    else 0 \
+                    for q in range(self.params['num_products'])
+                ]) for p in range(self.params['num_products'])
+            ]) + \
             self.params['travel_cost'] * np.sum(
                 self.params['travel_time'][1:-1, 1:-1] * \
                     np.sum(self.y[1:-1, 1:-1], (2, 3)) 
