@@ -4,6 +4,8 @@ This is the repo of NeurIPS 2019 submission - Reinforcement Learning for Integer
 
 ## Dependencies
 The code works in Python 2.7. You need to install Chainer, Cython, Gurobi (Gurobi-py).
+Ensure that a local environment is created before dependencies are installed
+Also make sure that the current python alias points to the local environment
 
 ## Build
 You need to build all the C dependencies using Cython. In particular
