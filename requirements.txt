@@ -45,7 +45,6 @@ notebook==6.1.6
 numpy==1.19.4
 ortools==8.1.8487
 packaging==20.8
-pandas==1.2.1
 pandocfilters==1.4.3
 parso==0.8.1
 pexpect==4.8.0
