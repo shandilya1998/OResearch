@@ -25,14 +25,14 @@ def get_params(data_type):
 
     num_products = meta['products'][0] #random.randint(0, 5)
     num_customers = meta['customers'][0]
-    print('---------------------')
+    print('-----------------------')
     print('Number of Products:')
     print(num_products)
-    print('---------------------')
-    print('---------------------')
+    print('-----------------------')
+    print('-----------------------')
     print('Number of Customers:')
     print(num_customers)
-    print('---------------------')
+    print('-----------------------')
     num_trips = num_customers
     num_batches = num_customers
     num_vehicle_types = len(vehicle_type_cost) # random.randint(0, 8)

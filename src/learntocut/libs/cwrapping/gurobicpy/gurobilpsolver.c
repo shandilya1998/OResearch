@@ -16,7 +16,7 @@
             "/Users/shreyasshandilya/Desktop/OResearch/env/lib/python2.7/site-packages/numpy/core/include"
         ], 
         "libraries": [
-            "gurobi801"
+            "gurobi80"
         ], 
         "name": "gurobilpsolver", 
         "sources": [

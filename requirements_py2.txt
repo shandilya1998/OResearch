@@ -1,0 +1,14 @@
+chainer==6.7.0
+Cython==0.29.21
+filelock==3.0.12
+numpy==1.16.6
+ortools==7.3.7083
+pandas==0.24.2
+pathlib==1.0.1
+protobuf==3.14.0
+python-dateutil==2.8.1
+pytz==2021.1
+-e git+https://github.com/shandilya1998/OResearch@c01ca3e6092736370edea20f8d17fec9a6b8efd6#egg=rlip&subdirectory=src/learntocut
+six==1.15.0
+typing==3.6.6
+typing-extensions==3.6.6
