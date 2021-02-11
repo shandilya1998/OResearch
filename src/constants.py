@@ -4,11 +4,11 @@ import os
 import numpy as np
 
 
-TRAVEL_TIME = 'travel_time_full.csv'
+TRAVEL_TIME = 'travel_time.csv'
 VEHICLES = 'vehicles.csv'
 VEHICLE_TYPE = 'vehicle_type.csv'
-META = 'meta_full.csv'
-LOWER_TIME_LIMIT = 'lower_time_limit_full.csv'
+META = 'meta.csv'
+LOWER_TIME_LIMIT = 'lower_time_limit.csv'
 
 def get_params(data_type):
     data_path = 'data'
@@ -25,6 +25,7 @@ def get_params(data_type):
 
     num_products = meta['products'][0] #random.randint(0, 5)
     num_customers = meta['customers'][0]
+    num_nodes = num_customers + 2
     print('-----------------------')
     print('Number of Products:')
     print(num_products)
@@ -40,11 +41,11 @@ def get_params(data_type):
     demand = np.array([
         [
             random.uniform(10, 200) for p in range(num_products)
-        ] for i in range(num_customers + 2)
+        ] for i in range(num_nodes)
     ])
     for p in range(num_products):
         demand[0][p] = 0
-        demand[num_customers + 1] = 0
+        demand[num_nodes - 1] = 0
     demand = demand.astype(np.int32)
 
     process_time = np.array([
@@ -54,7 +55,7 @@ def get_params(data_type):
     service_time_coef = 0.2
     service_time = service_time_coef * np.sum(demand, -1).astype(data_type)
     service_time[0] = 10
-    service_time[num_customers + 1] = 10
+    service_time[num_nodes - 1] = 10
     service_time = service_time.astype(data_type)
 
     lower = pd.read_csv(
@@ -67,8 +68,8 @@ def get_params(data_type):
     upper = 0
     max_up = 0
     index = 0
-    for i in range(num_customers + 2):
-        if i == 0 or num_customers + 1:
+    for i in range(num_nodes):
+        if i == 0 or num_nodes - 1:
             time_windows.append([0, 0])
         else:
             upper =  sum([
@@ -83,11 +84,12 @@ def get_params(data_type):
                 index = i
 
     time_windows[0][1] = max_up + travel_time[0][index] + 10
-    time_windows[num_customers + 1][1] = max_up + travel_time[0][index] + 10
+    time_windows[num_nodes - 1][1] = max_up + travel_time[0][index] + 10
     time_windows = np.array(time_windows).astype(data_type)
 
     params = {
         'num_customers': num_customers,
+        'num_nodes' : num_nodes,
         'num_trips' : num_trips,
         'num_batches' : num_batches,
         'num_products': num_products,

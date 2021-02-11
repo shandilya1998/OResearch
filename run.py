@@ -11,7 +11,7 @@ output_path = 'outputs'
 """
 """
 params = None
-model = 'LP'
+model = 'CPSAT'
 if model == 'CPSAT':
     params = src.constants.get_params(int)
 elif model == 'MILP' or model == 'LP':
@@ -21,7 +21,7 @@ solver = src.run(
     params,
     model
 )
-"""
+#"""
 
 """
     numpy model test
