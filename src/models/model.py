@@ -348,18 +348,241 @@ class MIPModel:
             Production Sequence Constraint
         """
         start = end
-        end += 1
+        end += self.params['num_products']
         xmax = self.params['num_prodcuts']
         ymax = self.params['num_products']
-        p_start = self.indices[0]
-        p_end = self.indices[-1]
+        x_start = self.indices['x'][0]
+        x_end = self.indices['x'][-1]
         for p in range(self.params['num_products']):
-            #idx1  
             for q in range(self.params['num_products']):
                 idx1 = self._2Dto1D(p, q, xmax, ymax)
-                idx2 = self._2Dto1D(q, p, xmax, ymax)
                 if p != q:
-                    self.A[start, idx1]
+                    self.A[p + start, idx1 + x_start] = 1
+        start = end
+        end += self.params['num_products']
+        for p in range(self.params['num_products']):
+            for q in range(self.params['num_products']):
+                idx1 = self._2Dto1D(q, p, xmax, ymax)
+                if p != q:
+                    self.A[p + start, idx1 + x_start] = 1
+
+        """
+            Batch Trip Constraints
+        """
+        start = end
+        end += 1
+        xmax = self.params['num_nodes']
+        ymax = self.params['num_vehicles']
+        zmax = self.params['num_trips']
+        for v in range(self.params['num_vehicles']):
+            for h in range(self.params['num_trips'])
+                idx = self._3Dto1D(0, v, h, xmax, ymax, zmax)
+                self.A[start, idx + u_start] = 1
+        d_start = self.indices['d'][0]
+        d_end = self.indices['d'][-1]
+        for f in range(self.params['num_batches']):
+            self.A[start, f + d_start] = -1
+
+        start = end
+        end += self.params['num_batches'] - 1
+        for f in range(self.params['num_batches'] - 1):
+            self.A[f + start, f + d_start] = -1
+            self.A[f + start, f + d_start + 1] = 1
+
+        """
+            Active Trip Batch Constraints
+        """
+        start = end
+        end += self.params['num_vehicles'] * self.params['num_trips']
+        _xmax = self.params['num_batches']
+        t_start = self.indices['t'][0]
+        t_end = self.indices['t'][-1]
+        for v in range(self.params['num_vehicles']):
+            for h in range(self.params['num_vehicles']):
+                idx1 = self._2Dto1D(v, h, ymax, zmax)
+                for f in range(self.params['num_batches']):
+                    idx3 = self._3Dto1D(f, v, h, _xmax, ymax, zmax)
+                    self.A[idx1 + start, idx3 + t_start] = -1
+                idx2 = self._3Dto1D(0, v, h, xmax, ymax, zmax)
+                self.A[idx1 + start, idx2 + u_start] = 1
+        start = end
+        end += self.params['num_batches']
+        for f in range(self.params['num_batches']):
+            self.A[f + start, f + d_start] = 1
+            for v in range(self.params['num_vehicles']):
+                for h in range(self.params['num_trips']):
+                    idx = self._3Dto1D(f, v, h, _xmax, ymax, zmax)
+                    self.A[f + start, idx + t_start] = -1
+
+        """
+            Customer Batch Constraints
+        """
+        start = end
+        end += self.params['num_customers']
+        xmax = self.params['num_customers']
+        ymax = self.params['num_batches']
+        b_start = self.indices['b'][0]
+        b_end = self.indices['b'][-1]
+        for j in range(self.params['num_customers']):
+            for f in range(self.params['num_batches']):
+                idx = self._2Dto1D(j, f, xmax, ymax)
+                self.A[j + start, idx + b_start]
+            self.b[j + start] = 1
+
+        """
+            Link1 Constraint
+        """
+        start = end
+        end += self.params['num_customers'] * self.params['num_batches'] * \
+            self.params['num_vehicles'] * self.params['num_trips']
+        _xmax = self.params['num_nodes']
+        zmax = self.params['num_vehicles']
+        umax = self.params['num_trips']
+        for j in range(1, self.params['num_customers'] + 1):
+            for f in range(self.params['num_batches']):
+                for v in range(self.params['num_vehicles']):
+                    for h in range(self.params['num_trips']):
+                        idx1 = self._4Dto1D(j - 1, f, v, h, _xmax, ymax, zmax, \
+                            umax)
+                        idx2 = self._2Dto1D(j, f, xmax, ymax)
+                        idx3 = self._3Dto1D(j, v, h, _xmax, zmax, umax)
+                        idx4 = self._3Dto1D(f, v, h, ymax, zmax, umax)
+                        self.A[idx1 + start, idx2 + b_start] = -1
+                        self.A[idx1 + start, idx3 + u_start] = 1
+                        self.A[idx1 + start, idx4 + t_start] = 1
+
+        """
+            Link2 Constraint
+        """
+        start = end
+        end += self.params['num_customers'] * self.params['num_batches'] * \
+            self.params['num_vehicles'] * self.params['num_trips']
+        for j in range(1, self.params['num_customers'] + 1):
+            for f in range(self.params['num_batches']):
+                for v in range(self.params['num_vehicles']):
+                    for h in range(self.params['num_trips']):
+                        idx1 = self._4Dto1D(j - 1, f, v, h, _xmax, ymax, zmax, \                            umax)
+                        idx2 = self._3Dto1D(f, v, h, ymax, zmax, umax)
+                        idx3 = self._2Dto1D(j, f, xmax, ymax)
+                        idx4 = self._3Dto1D(j, v, h, _xmax, zmax, umax)
+                        self.A[idx1 + start, idx2 + t_start] = -1
+                        self.A[idx1 + start, idx3 + b_start] = 1
+                        self.A[idx1 + start, idx4 + u_start] = 1
+                        self.b[idx1 + start] = 1
+
+        """
+            Batch Production Sequence Constraint
+        """
+        start = end
+        end += self.params['num_batches']
+        xmax = self.params['num_batches']
+        ymax = self.params['num_batches']
+        g_start = self.indices['g'][0]
+        g_end = self.indices['g'][-1]
+        for f in range(self.params['num_batches']):
+            for f_ in range(self.params['num_batches']):
+                if f != f_:
+                    idx1 = self._2Dto1D(f_, f, xmax, ymax)
+                    self.A[f + start, idx1 + g_start ] = -1
+            self.A[f + start, f + d_start] = 1
+
+        start = end
+        end += self.params['num_batches']
+        for f in range(self.params['num_batches']):
+            for f_ in range(self.params['num_batches']):
+                if f != f_:
+                    idx1 = self._2Dto1D(f, f_, xmax, ymax)
+                    self.A[f + start, idx1 + g_start] = -1
+            self.A[f + start, f + d_start] = 1
+
+        """
+            Production Completion Constraint
+            Mistakes in this formulations need correction
+        """
+        start = end
+        end += self.params['num_products'] * self.params['num_batches']
+        xmax = self.params['num_products']
+        ymax = self.params['num_batches']
+        zmax = self.params['num_products']
+        umax = self.params['num_customers']
+        c_start = self.indices['c'][0]
+        c_end = self.indices['c'][-1]
+        for p in range(self.params['num_products']):
+            for f in range(self.params['num_batches']):
+                idx = self._2Dto1D(p, f, xmax, ymax)
+                idx3 = self._2Dto1D(0, f, ymax, ymax)
+                self.b[idx + start] = self.params['M']
+                for _p in range(self.params['num_products']):
+                    for _q in range(self.params['num_products']):
+                        if _p != _q:
+                            idx1 = self._2Dto1D(_p, _q, xmax, zmax)
+                            self.A[idx + start, idx1 + x_start] = \
+                                self.params['setup_time']
+                    for j in range(self.params['num_customers']):
+                        idx2 = self._2Dto1D(j, f, umax, ymax)
+                        self.A[idx + start, idx2 + b_start] = \
+                            self.params['process_time'] * \
+                            self.params['demand'][j + 1][_p]
+                self.A[idx + start, idx3 + g_start] = self.params['M']
+                self.A[idx + start, idx + c_start] = -1
+
+        start = end
+        end += self.params['num_products'] * self.params['num_batches'] * \
+            self.params['num_batches']
+        wmax = self.params['num_batches']
+        s_start = self.indices['s'][0]
+        s_end = self.indices['s'][-1]
+        for p in range(self.params['num_products']):
+            for f in range(self.params['num_batches']):
+                for f_ in range(self.params['num_batches']):
+                    idx = self._3Dto1D(p, f, f_, xmax, ymax, wmax)
+                    idx3 = self._2Dto1D(f, f_, ymax, wmax)
+                    idx4 = self._2Dto1D(p, f_, xmax, ymax)
+                    self.b[idx + start] = self.params['M']
+                    for _p in range(self.params['num_products']):
+                        for _q in range(self.params['num_products']):
+                            if _p != _q:
+                                idx1 = self._2Dto1D(_p, _q, xmax, zmax)
+                                self.A[idx + start, idx1 + x_start] = \
+                                    self.params['setup_time']
+                        for j in range(self.params['num_customers']):
+                            idx2 = self._2Dto1D(j, f, umax, ymax)
+                            self.A[idx + start, idx2 + b_start] = \
+                                self.params['process_time'] * \
+                                self.params['demand'][j + 1][_p]
+                    self.A[idx + start, idx3 + g_start] = self.params['M']
+                    self.A[idx + start, idx4 + c_start] = -1
+                    self.A[idx + start, idx + start] = 1
+
+        """
+            Arrival Customer Constraints
+        """
+        start = end
+        end += self.params['num_customers'] * self.params['num_vehicles'] * \
+            self.params['num_trips']
+        xmax = self.params['num_nodes']
+        ymax = self.params['num_vehicles']
+        zmax = self.params['num_trips']
+        umax = self.params['num_batches']
+        a_start = self.indices['a'][0]
+        a_end = self.indices['s'][-1]
+        st_start = self.indices['st'][0]
+        st_end = self.indices['st'][-1]
+        for j in range(self.params['num_customers']):
+            for v in range(self.params['num_vehicles']):
+                for h in range(self.params['num_trips']):
+                    idx = self._3Dto1D(j, v, h, xmax, ymax, zmax)
+                    idx1 = self._3Dto1D(j + 1, v, h, xmax, ymax, zmax)
+                    idx2 = self._2Dto1D(v, h, ymax, zmax)
+                    idx3 = self._2Dto1D(0, j + 1, umax, xmax)
+                    idx4 = self._3Dto1D(j + 1, v, h, xmax, ymax, zmax)
+                    self.A[idx + start, idx1 + a_start] = -1
+                    self.A[idx + start, idx2 + st_start] = 1
+                    self.A[idx + start, idx3 + t_start] = 1
+                    self.A[idx + start, idx4 + u_start] = self.params['M']
+                    self.b[idx + start] = self.params['M'] + \
+                        self.params['service_time'][0]
+
 
     def _3Dto1D(self, x, y, z, xmax, ymax, zmax):
         return (z * xmax * ymax) + (y * xmax) + x
