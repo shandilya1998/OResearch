@@ -70,7 +70,8 @@ class MIPModel:
             (self.params['num_customers'] + 1) * \
                 (self.params['num_customers'] + 1) * \
                 self.params['num_vehicles'] * self.params['num_trips'] + \
-            self.params['num_vehicles'] * self.params['num_batches'] + \
+            self.params['num_products'] * self.params['num_vehicles'] * \
+                self.params['num_batches'] + \
             self.params['num_vehicles'] * self.params['num_trips'] * \
                 self.params['num_batches'] + \
             self.params['num_vehicles'] * self.params['num_trips'] * \
@@ -583,6 +584,106 @@ class MIPModel:
                     self.b[idx + start] = self.params['M'] + \
                         self.params['service_time'][0]
 
+        """
+            Arrival Next Constraints
+        """
+        start = end
+        end += (self.params['num_customers'] + 1) * \
+            (self.params['num_customers'] + 1) * \
+            self.params['num_vehicles'] * self.params['num_trips']
+        xmax = self.params['num_nodes']
+        ymax = self.params['num_nodes']
+        zmax = self.params['num_vehicles']
+        umax = self.params['num_trips']
+        for i in range(self.params['num_customers'] + 1):
+            for j in range(self.params['num_customers'] + 1):
+                for v in range(self.params['num_vehicles']):
+                    for h in range(self.params['num_trips']):
+                        idx = self._4Dto1D(i, j, v, h, xmax, ymax, zmax, umax)
+                        idx1 = self._3Dto1D(j + 1, v, h, ymax, zmax, umax)
+                        idx2 = self._3Dto1D(i, v, h, xmax, zmax, umax)
+                        idx3 = self._2Dto1D(i, j + 1, xmax, ymax)
+                        idx4 = self._4Dto1D(i, j + 1, v, h, xmax, ymax, zmax, \
+                            umax)
+                        self.A[idx + start, idx1 + a_start] = -1
+                        self.A[idx + start, idx2 + a_start] = 1
+                        self.A[idx + start, idx3 + t_start] = 1
+                        self.A[idx + start, idx4 + y_start] = self.params['M']
+                        self.b[idx + start] = self.params['M'] + \
+                            self.params['service_time'][i]
+
+        """
+            Start Tour Constraint
+        """
+        start = end
+        end += self.params['num_products'] * self.params['num_vehicles'] * \
+            self.params['num_batches']
+        xmax = self.params['num_products']
+        ymax = self.params['num_vehicles']
+        zmax = self.params['num_batches']
+        umax = self.params['num_trips']
+        for v in range(self.params['num_vehicles']):
+            for f in range(self.params['num_batches']):
+                idx = self._2Dto1D(v, h, ymax, zmax)
+                idx1 = self._2Dto1D(v, 1, xmax, umax)
+                idx2 = self._2Dto1D(p, f, xmax, ymax)
+                idx3 = self._3Dto1D(f, v, 1, ymax, zmax, umax)
+                self.A[idx + start, idx1 + st_start] = -1
+                self.A[idx + start, idx2 + c_start] = 1
+                self.A[idx + start, idx3 + t_stat] = self.params['M']
+                self.b[idx + start] = self.params['M'] - \
+                    self.params['service_time'][0]
+
+
+        #"""
+        #    Start Next Constraint
+        """
+        start = end
+        end += self.params['num_products'] * self.params['num_vehicles'] * \
+            self.params['num_trips'] * self.params['num_batches']
+        xmax = self.params['num_products']
+        ymax = self.params['num_vehicles']
+        zmax = self.params['num_trips']
+        umax = self.params['num_batches']
+        for p in range(self.params['num_products']):
+            for v in range(self.params['num_vehicles']):
+                for h in range(self.params['num_trips']):
+                    for f in range(self.params['num_batches']):
+                        pass
+        """
+        """
+            Time Window Constraint
+        """
+        start = end
+        end += self.params['num_customers'] * self.params['num_vehicles'] * \
+            self.params['num_trips']
+        xmax = self.params['num_nodes']
+        ymax = self.params['num_vehicles']
+        zmax = self.params['num_trips']
+        e_start = self.indices['e'][0]
+        e_end = self.indices['e'][-1]
+        l_start = self.indices['l'][0]
+        l_end = self.indices['l'][-1]
+        for j in range(self.params['num_customers']):
+            for v in range(self.params['num_vehicles']):
+                for h in range(self.params['num_trips']):
+                    idx = self._3Dto1D(j, v, h, xmax, ymax, zmax)
+                    idx1 = self._3Dto1D(j + 1, v, h, xmax, ymax, zmax)
+                    self.A[idx + start, idx1 + e_start] = -1
+                    self.A[idx + start, idx1 + a_start] = - 1
+                    self.b[idx + start] = -self.params['time_window'][j + 1][0]
+
+        start = end
+        end += self.params['num_customers'] * self.params['num_vehicles'] * \
+            self.params['num_trips']
+        for j in range(self.params['num_customers']):
+            for v in range(self.params['num_vehicles']):
+                for h in range(self.params['num_trips']):
+                    idx = self._3Dto1D(j, v, h, xmax, ymax, zmax)
+                    idx1 = self._3Dto1D(j + 1, v, h, xmax, ymax, zmax)
+                    self.A[idx + start, idx1 + l_start] = -1
+                    self.A[idx + start, idx1 + a_start] = - 1
+                    self.b[idx + start] = -self.params['time_window'][j + 1][1]
 
     def _3Dto1D(self, x, y, z, xmax, ymax, zmax):
         return (z * xmax * ymax) + (y * xmax) + x
