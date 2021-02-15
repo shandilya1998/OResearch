@@ -169,7 +169,7 @@ class MIPModel:
         xmax = self.params['num_trips']
         u_start = self.indices['u'][0]
         u_end = self.indices['u'][-1]
-        for i in range(self.num_params):
+        for i in range(self.params['num_customers']):
             for v in range(self.params['num_vehicles']):
                 for h in range(self.params['num_trips']):
                     idx = self._3Dto1D(i+1, v, h, xmax, ymax, zmax) + u_start
@@ -376,7 +376,7 @@ class MIPModel:
         ymax = self.params['num_vehicles']
         zmax = self.params['num_trips']
         for v in range(self.params['num_vehicles']):
-            for h in range(self.params['num_trips'])
+            for h in range(self.params['num_trips']):
                 idx = self._3Dto1D(0, v, h, xmax, ymax, zmax)
                 self.A[start, idx + u_start] = 1
         d_start = self.indices['d'][0]
@@ -462,7 +462,8 @@ class MIPModel:
             for f in range(self.params['num_batches']):
                 for v in range(self.params['num_vehicles']):
                     for h in range(self.params['num_trips']):
-                        idx1 = self._4Dto1D(j - 1, f, v, h, _xmax, ymax, zmax, \                            umax)
+                        idx1 = self._4Dto1D(j - 1, f, v, h, _xmax, ymax, zmax, \
+                                umax)
                         idx2 = self._3Dto1D(f, v, h, ymax, zmax, umax)
                         idx3 = self._2Dto1D(j, f, xmax, ymax)
                         idx4 = self._3Dto1D(j, v, h, _xmax, zmax, umax)

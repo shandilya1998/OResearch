@@ -24,16 +24,12 @@ class CPSATModel:
     def get_solution(self):
         solution = {
             's' : [
-                [
-                    self.solver.Value(self.s[p][f]) \
-                    for f in range(self.params['num_batches'])
-                ] for p in range(self.params['num_products'])
+                self.solver.Value(self.s[f]) \
+                for f in range(self.params['num_batches'])
             ],
             'c' : [
-                [
-                    self.solver.Value(self.c[p][f]) \
-                    for f in range(self.params['num_batches'])
-                ] for p in range(self.params['num_products'])
+                self.solver.Value(self.c[f]) \
+                for f in range(self.params['num_batches'])
             ],
             'st' : [
                 [
@@ -126,28 +122,22 @@ class CPSATModel:
     def build(self):
         print('Building Variables.')
         self.s = np.array([
-            [
-                self.model.NewIntVar(
-                    0,
-                    self.infinity,
-                    'start time product `{p}` batch `{f}`'.format(
-                        p = p,
-                        f = f
-                    )
-                ) for f in range(self.params['num_batches'])
-            ] for p in range(self.params['num_products'])
+            self.model.NewIntVar(
+                0,
+                self.infinity,
+                'start time batch `{f}`'.format(
+                    f = f
+                )
+            ) for f in range(self.params['num_batches'])
         ])
         self.c = np.array([
-            [
-                self.model.NewIntVar(
-                    0,
-                    self.infinity,
-                    'completion time product {p} batch {f}'.format(
-                        p = p,
-                        f = f
-                    )
-                ) for f in range(self.params['num_batches'])
-            ] for p in range(self.params['num_products'])
+            self.model.NewIntVar(
+                0,
+                self.infinity,
+                'completion time batch {f}'.format(
+                    f = f
+                )
+            ) for f in range(self.params['num_batches'])
         ])
         self.st = np.array([
             [
@@ -296,7 +286,7 @@ class CPSATModel:
         print('Building Constraints.')
         for j in range(1, self.params['num_nodes'] - 1):
             self.model.Add(np.sum(self.u, (1, 2))[j] == 1)
-        for j in range(self.params['num_nodes']):
+        for j in range(1, self.params['num_nodes']):
             for h in range(self.params['num_trips']):
                 for v in range(self.params['num_vehicles']):
                     self.model.Add(self.u[0][v][h] >= self.u[j][v][h])
@@ -309,7 +299,7 @@ class CPSATModel:
                             self.u[j][v][h] \
                             for p in range(self.params['num_products'])
                         ]) for j in range(
-                            1, 
+                            1,
                             self.params['num_nodes'] - 1
                         )
                     ]) <= self.params['vehicle_capacity'][v]
@@ -333,9 +323,9 @@ class CPSATModel:
                             self.y[self.params['num_nodes'] - 1][j][v][h]
                     )
                     self.model.Add(
-                        self.u[j][v][h] == np.sum(self.y, 0)[j][v][h] - \
+                        self.u[j][v][h] == np.sum(self.y, 1)[j][v][h] - \
                             self.y[j][j][v][h] - \
-                            self.y[0][j][v][h]
+                            self.y[j][0][v][h]
                     )
         for i in range(1, self.params['num_nodes'] - 1):
             for j in range(1, self.params['num_nodes'] - 1):
@@ -367,8 +357,9 @@ class CPSATModel:
                 )
         for p in range(self.params['num_products']):
             self.model.Add(
-                np.sum(self.x, -1)[p] - self.x[p][p] == 1 \
-                and \
+                np.sum(self.x, -1)[p] - self.x[p][p] == 1
+            )
+            self.model.Add(
                 np.sum(self.x, 0)[p] - self.x[p][p] == 1
             )
         for p in range(self.params['num_products']):
@@ -419,10 +410,27 @@ class CPSATModel:
             self.model.Add(
                 np.sum(self.g, 1)[f] - self.g[f][f] == self.d[f]
             )
-        for p in range(self.params['num_products']):
-            for f in range(self.params['num_batches']):
+        for f in range(self.params['num_batches']):
+            self.model.Add(
+                np.sum(
+                    self.params['setup_time'] * self.x,
+                    (0, 1)
+                ) + sum([
+                    sum([
+                        self.params['process_time'][q] * \
+                        self.params['demand'][j][q] * \
+                        self.b[j - 1][f] \
+                        for j in range(
+                            1,
+                            self.params['num_nodes'] - 1
+                        )
+                    ]) for q in range(self.params['num_products'])
+                ]) - self.params['M'] * (1- self.g[0][f]) <= \
+                    self.c[f]
+            )
+            for f_ in range(self.params['num_batches']):
                 self.model.Add(
-                    np.sum(
+                    self.s[f] + np.sum(
                         self.params['setup_time'] * self.x,
                         (0, 1)
                     ) + sum([
@@ -433,29 +441,11 @@ class CPSATModel:
                             for j in range(
                                 1,
                                 self.params['num_nodes'] - 1
-                            )
-                        ]) for q in range(self.params['num_products'])
-                    ]) - self.params['M'] * (1- self.g[0][f]) <= \
-                        self.c[p][f]
-                )
-                for f_ in range(self.params['num_batches']):
-                    self.model.Add(
-                        self.s[p][f] + np.sum(
-                            self.params['setup_time'] * self.x,
-                            (0, 1)
-                        ) + sum([
-                            sum([
-                                self.params['process_time'][q] * \
-                                self.params['demand'][j][q] * \
-                                self.b[j - 1][f] \
-                                for j in range(
-                                    1,
-                                    self.params['num_nodes'] - 1
                                 )
-                            ]) for q in range(self.params['num_products'])
-                        ]) - self.params['M'] * (1 - self.g[f][f_]) <= \
-                            self.c[p][f_]
-                    )
+                        ]) for q in range(self.params['num_products'])
+                    ]) - self.params['M'] * (1 - self.g[f][f_]) <= \
+                        self.c[f_]
+                )
         for j in range(1, self.params['num_nodes'] - 1):
             for v in range(self.params['num_vehicles']):
                 for h in range(self.params['num_trips']):
@@ -465,6 +455,9 @@ class CPSATModel:
                             self.params['travel_time'][0][j]- \
                             self.params['M'] * (1 - self.u[j][v][h])
                     )
+        for j in range(1, self.params['num_nodes']):
+            for v in range(self.params['num_vehicles']):
+                for h in range(self.params['num_trips']):
                     for i in range(self.params['num_nodes'] - 1):
                         self.model.Add(
                             self.a[j][v][h] >= self.a[i][v][h] + \
@@ -472,32 +465,38 @@ class CPSATModel:
                                 self.params['travel_time'][i][j] - \
                                 self.params['M'] * (1 - self.y[i][j][v][h])
                         )
-        for p in range(self.params['num_products']):
-            for v in range(self.params['num_vehicles']):
-                for f in range(self.params['num_batches']):
-                    self.model.Add(
-                        self.st[v][1] >= self.c[p][f] + \
-                            self.params['service_time'][0] - \
-                            self.params['M'] * (1 - self.t[f][v][1])
-                    )
-        for p in range(self.params['num_products']):
+        for v in range(self.params['num_vehicles']):
             for f in range(self.params['num_batches']):
-                for v in range(self.params['num_vehicles']):
-                    for h in range(self.params['num_trips'] - 1):
-                        self.model.Add(
+                self.model.Add(
+                    self.st[v][1] >= self.c[f] + \
+                        self.params['service_time'][0] - \
+                        self.params['M'] * (1 - self.t[f][v][1])
+                )
+        for f in range(self.params['num_batches']):
+            for v in range(self.params['num_vehicles']):
+                for h in range(self.params['num_trips'] - 1):
+                    self.model.Add(
+                        ((
                             self.st[v][h+1] >= self.a[
                                 self.params['num_nodes'] - 1
                             ][v][h] + self.params['service_time'][
                                 self.params['num_nodes'] - 1
-                            ] and self.a[
+                            ]) and (
+                            self.a[
                                 self.params['num_nodes'] - 1
-                            ][v][h] <= self.c[p][f]
-                        )
-                        self.model.Add(
-                            self.st[v][h+1] >= self.c[p][f] + \
-                                self.params['service_time'][0] - \
-                                self.params['M'] * (1 - self.t[f][v][h+1])
-                        )
+                            ][v][h] <= self.c[f]
+                        )) or ((
+                            self.st[v][h+1] >= self.c[f] + \
+                            self.params['service_time'][0] - \
+                            self.params['M'] * (1 - self.t[f][v][h+1])
+                        ) and (
+                            not (
+                                self.a[
+                                    self.params['num_nodes'] - 1 
+                                ][v][h] <= self.c[f]
+                            )
+                        ))
+                    )
         for j in range(1, self.params['num_nodes'] - 1):
             for v in range(self.params['num_vehicles']):
                 for h in range(self.params['num_trips']):
@@ -510,7 +509,7 @@ class CPSATModel:
                         self.l[j][v][h] >= self.a[j][v][h] - self.params[
                             'time_windows'
                         ][j][1]
-                    ) 
+                    )
         print('Building Objective.')
 
         self.model.Minimize(

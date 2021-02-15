@@ -45,7 +45,7 @@ def get_params(data_type):
     ])
     for p in range(num_products):
         demand[0][p] = 0
-        demand[num_nodes - 1] = 0
+        demand[num_nodes - 1][p] = 0
     demand = demand.astype(np.int32)
 
     process_time = np.array([
