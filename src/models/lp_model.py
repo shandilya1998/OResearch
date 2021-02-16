@@ -178,35 +178,19 @@ class Model:
             ] for j in range(self.params['num_nodes'])
         ])
         self.e = np.array([
-            [
-                [
-                    self.Var(
-                        0.0,
-                        self.infinity,
-                        'early delivery time \
-                            customer {j} \
-                            vehicle {v} \
-                            trip {h}'.format(
-                            j=j, v=v, h=h)
-                    ) for h in range(self.params['num_trips'])
-                ] for v in range(self.params['num_vehicles'])
-            ] for j in range(self.params['num_nodes'])
-        ])
+            self.Var(
+                0.0,
+                self.infinity,
+                'early delivery time customer {j}'.format(j=j)
+            ] for j in range(self.params['num_customers'])
+        )
         self.l = np.array([
-            [
-                [
-                    self.Var(
-                        0.0,
-                        self.infinity,
-                        'late delivery time \
-                            customer {j} \
-                            vehicle {v} \
-                            trip {h}'.format(
-                            j=j, v=v, h=h)
-                    ) for h in range(self.params['num_trips'])
-                ] for v in range(self.params['num_vehicles'])
+            self.Var(
+                0.0,
+                self.infinity,
+                'late delivery time customer {j}'.format(j=j)
             ] for j in range(self.params['num_nodes'])
-        ])
+        )
         self.x = np.array([
             [
                 self.solver.BoolVar(
@@ -512,12 +496,12 @@ class Model:
             for v in range(self.params['num_vehicles']):
                 for h in range(self.params['num_trips']):
                     self.solver.Add(
-                        self.e[j][v][h] >= \
+                        self.e[j - 1] >= \
                         self.params['time_windows'][j][0] - self.a[j][v][h]
                     )
 
                     self.solver.Add(
-                        self.l[j][v][h] >= self.a[j][v][h] - self.params[
+                        self.l[j - 1] >= self.a[j][v][h] - self.params[
                             'time_windows'
                         ][j][1]
                     )
@@ -543,10 +527,10 @@ class Model:
                 self.params['vehicle_cost'] * self.w
             ) + \
             self.params['early_delivery_penalty'] * np.sum(
-                self.e[1:-1]
+                self.e
             ) + \
             self.params['late_delivery_penalty'] * np.sum(
-                self.l[1:-1]
+                self.l
             )
         )
 
