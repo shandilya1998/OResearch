@@ -425,9 +425,9 @@ class CPSATModel:
                             self.params['num_nodes'] - 1
                         )
                     ]) for q in range(self.params['num_products'])
-                ]) - self.params['M'] * (1- self.g[0][f]) <= \
+                ]) <= \
                     self.c[f]
-            )
+            ).OnlyEnforceIf(self.g[0, f])
             for f_ in range(self.params['num_batches']):
                 self.model.Add(
                     self.s[f] + np.sum(
@@ -443,18 +443,17 @@ class CPSATModel:
                                 self.params['num_nodes'] - 1
                                 )
                         ]) for q in range(self.params['num_products'])
-                    ]) - self.params['M'] * (1 - self.g[f][f_]) <= \
+                    ]) <= \
                         self.c[f_]
-                )
+                ).OnlyEnforceIf(self.g[f, f_])
         for j in range(1, self.params['num_nodes'] - 1):
             for v in range(self.params['num_vehicles']):
                 for h in range(self.params['num_trips']):
                     self.model.Add(
                         self.a[j][v][h] >= self.st[v][h] + \
                             self.params['service_time'][0] + \
-                            self.params['travel_time'][0][j]- \
-                            self.params['M'] * (1 - self.u[j][v][h])
-                    )
+                            self.params['travel_time'][0][j]
+                    ).OnlyEnforceIf(self.u[j,v,h])
         for j in range(1, self.params['num_nodes']):
             for v in range(self.params['num_vehicles']):
                 for h in range(self.params['num_trips']):
@@ -462,16 +461,14 @@ class CPSATModel:
                         self.model.Add(
                             self.a[j][v][h] >= self.a[i][v][h] + \
                                 self.params['service_time'][i] + \
-                                self.params['travel_time'][i][j] - \
-                                self.params['M'] * (1 - self.y[i][j][v][h])
-                        )
+                                self.params['travel_time'][i][j]
+                        ).OnlyEnforceIf(self.y[i][j][v][h])
         for v in range(self.params['num_vehicles']):
             for f in range(self.params['num_batches']):
                 self.model.Add(
                     self.st[v][1] >= self.c[f] + \
-                        self.params['service_time'][0] - \
-                        self.params['M'] * (1 - self.t[f][v][1])
-                )
+                        self.params['service_time'][0]
+                ).OnlyEnforceIf(self.t[f,v, 1])
         for f in range(self.params['num_batches']):
             for v in range(self.params['num_vehicles']):
                 for h in range(self.params['num_trips'] - 1):
