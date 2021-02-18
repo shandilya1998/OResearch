@@ -14,7 +14,7 @@ params = None
 model = 'MILP'
 if model == 'CPSAT':
     params = src.constants.get_params(int)
-elif model == 'MILP' or model == 'LP':
+elif model == 'MILP':
     params = src.constants.get_params(float)
 
 solver = src.run(

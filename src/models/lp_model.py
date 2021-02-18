@@ -10,12 +10,8 @@ class Model:
             print('Creating MILP solver')
             self.solver = pywraplp.Solver.CreateSolver('SCIP')
             self.Var = self.solver.IntVar
-        elif solver == 'LP':
-            print('Creating LP solver')
-            self.solver = pywraplp.Solver.CreateSolver('GLOP')
-            self.Var = self.solver.NumVar
         else:
-            raise ValueError('Expected one of MILP or LP solvers, \
+            raise ValueError('Expected MILP solver, \
                 but got {s}'.format(s = solver))
         self.infinity = self.solver.infinity()
         self.built = False
@@ -134,7 +130,7 @@ class Model:
         print('Building Variables.')
         self.s = np.array([
             self.Var(
-                0.0,
+                0,
                 self.infinity,
                 'start time batch `{f}`'.format(
                     f = f
@@ -143,7 +139,7 @@ class Model:
         ])
         self.c = np.array([
             self.Var(
-                0.0,
+                0,
                 self.infinity,
                 'completion time batch {f}'.format(
                     f = f
@@ -153,7 +149,7 @@ class Model:
         self.st = np.array([
             [
                 self.Var(
-                    0.0,
+                    0,
                     self.infinity,
                     'delivery start time vehicle {v} trip {h}'.format(
                         v=v, 
@@ -166,7 +162,7 @@ class Model:
             [
                 [
                     self.Var(
-                        0.0,
+                        0,
                         self.infinity,
                         'delivery arrival time \
                             customer {j} \
@@ -178,22 +174,39 @@ class Model:
             ] for j in range(self.params['num_nodes'])
         ])
         self.e = np.array([
-            self.Var(
-                0.0,
-                self.infinity,
-                'early delivery time customer {j}'.format(j=j)
-            ] for j in range(self.params['num_customers'])
-        )
-        self.l = np.array([
-            self.Var(
-                0.0,
-                self.infinity,
-                'late delivery time customer {j}'.format(j=j)
+            [
+                [
+                    self.Var(
+                        0,
+                        self.infinity,
+                        'early delivery time \
+                            customer {j} \
+                            vehicle {v} \
+                            trip {h}'.format(
+                            j=j, v=v, h=h)
+                    ) for h in range(self.params['num_trips'])
+                ] for v in range(self.params['num_vehicles'])
             ] for j in range(self.params['num_nodes'])
-        )
+        ])
+        self.l = np.array([
+            [
+                [
+                    self.Var(
+                        0,
+                        self.infinity,
+                        'late delivery time \
+                            customer {j} \
+                            vehicle {v} \
+                            trip {h}'.format(
+                            j=j, v=v, h=h)
+                    ) for h in range(self.params['num_trips'])
+                ] for v in range(self.params['num_vehicles'])
+            ] for j in range(self.params['num_nodes'])
+        ])
         self.x = np.array([
             [
-                self.solver.BoolVar(
+                self.Var(
+                    0, 1,
                     'production transition from \
                         product {p} \
                         to product {q}'.format(
@@ -203,7 +216,8 @@ class Model:
         ])
         self.b = np.array([
             [
-                self.solver.BoolVar(
+                self.Var(
+                    0, 1,
                     'order production customer {j} batch {f}'.format(
                         j = j,
                         f = f
@@ -212,13 +226,15 @@ class Model:
             ] for j in range(self.params['num_customers'])
         ])
         self.d = np.array([
-            self.solver.BoolVar(
+            self.Var(
+                0, 1,
                 'batch activity {f}'.format(f=f)
             ) for f in range(self.params['num_batches'])
         ])
         self.g = np.array([
             [
-                self.solver.BoolVar(
+                self.Var(
+                    0, 1,
                     'production transition from batch {f} to batch {f_}'.\
                         format(
                             f = f,
@@ -230,7 +246,8 @@ class Model:
         self.t = np.array([
             [
                 [
-                    self.solver.BoolVar(
+                    self.Var(
+                        0, 1,
                         'batch {f} vehicle {v} trip {h} map'.format(
                             f = f,
                             h = h,
@@ -243,7 +260,8 @@ class Model:
         self.u = np.array([
             [
                 [
-                    self.solver.BoolVar(
+                    self.Var(
+                        0, 1,
                         'customer {j} visit vehicle {v} trip {h}'.format(
                             j = j,
                             v = v,
@@ -257,7 +275,8 @@ class Model:
             [
                 [
                     [
-                        self.solver.BoolVar(
+                        self.Var(
+                            0, 1,
                             'customer delivery transition from \
                                 customer {i} to \
                                 customer {j} \
@@ -274,7 +293,8 @@ class Model:
             ] for i in range(self.params['num_nodes'])
         ])
         self.w = np.array([
-            self.solver.BoolVar(
+            self.Var(
+                0, 1,
                 'vehicle {v} usage'.format(v=v)
             ) for v in range(self.params['num_vehicles'])
         ])
@@ -420,7 +440,7 @@ class Model:
                             self.params['num_nodes'] - 1
                         )
                     ]) for q in range(self.params['num_products'])
-                ]) - self.params['M'] * (1- self.g[0][f]) <= \
+                ]) - self.params['M']*(1 - self.g[0, f]) <= \
                     self.c[f]
             )
             for f_ in range(self.params['num_batches']):
@@ -438,7 +458,7 @@ class Model:
                                 self.params['num_nodes'] - 1
                                 )
                         ]) for q in range(self.params['num_products'])
-                    ]) - self.params['M'] * (1 - self.g[f][f_]) <= \
+                    ]) - self.params['M']*(1 - self.g[f, f_]) <= \
                         self.c[f_]
                 )
         for j in range(1, self.params['num_nodes'] - 1):
@@ -447,8 +467,8 @@ class Model:
                     self.solver.Add(
                         self.a[j][v][h] >= self.st[v][h] + \
                             self.params['service_time'][0] + \
-                            self.params['travel_time'][0][j]- \
-                            self.params['M'] * (1 - self.u[j][v][h])
+                            self.params['travel_time'][0][j] - \
+                            self.params['M'] * (1 - self.u[j,v,h])
                     )
         for j in range(1, self.params['num_nodes']):
             for v in range(self.params['num_vehicles']):
@@ -462,46 +482,32 @@ class Model:
                         )
         for v in range(self.params['num_vehicles']):
             for f in range(self.params['num_batches']):
-                self.solver.Add(
-                    self.st[v][1] >= self.c[f] + \
-                        self.params['service_time'][0] - \
-                        self.params['M'] * (1 - self.t[f][v][1])
-                )
+                for h in range(self.params['num_trips']):
+                    self.solver.Add(
+                        self.st[v][h] >= self.c[f] + \
+                            self.params['service_time'][0] - \
+                            self.params['M'] * (1 - self.t[f,v, h])
+                    )
         for f in range(self.params['num_batches']):
             for v in range(self.params['num_vehicles']):
                 for h in range(self.params['num_trips'] - 1):
                     self.solver.Add(
-                        ((
-                            self.st[v][h+1] >= self.a[
-                                self.params['num_nodes'] - 1
-                            ][v][h] + self.params['service_time'][
-                                self.params['num_nodes'] - 1
-                            ]) and (
-                            self.a[
-                                self.params['num_nodes'] - 1
-                            ][v][h] <= self.c[f]
-                        )) or ((
-                            self.st[v][h+1] >= self.c[f] + \
-                            self.params['service_time'][0] - \
-                            self.params['M'] * (1 - self.t[f][v][h+1])
-                        ) and (
-                            not (
-                                self.a[
-                                    self.params['num_nodes'] - 1 
-                                ][v][h] <= self.c[f]
-                            )
-                        ))
+                        self.st[v][h + 1] >= self.a[
+                            self.params['num_nodes'] - 1
+                        ][v][h] + self.params['service_time'][
+                            self.params['num_nodes'] - 1
+                        ]
                     )
         for j in range(1, self.params['num_nodes'] - 1):
             for v in range(self.params['num_vehicles']):
                 for h in range(self.params['num_trips']):
                     self.solver.Add(
-                        self.e[j - 1] >= \
+                        self.e[j][v][h] >= \
                         self.params['time_windows'][j][0] - self.a[j][v][h]
                     )
 
                     self.solver.Add(
-                        self.l[j - 1] >= self.a[j][v][h] - self.params[
+                        self.l[j][v][h] >= self.a[j][v][h] - self.params[
                             'time_windows'
                         ][j][1]
                     )
