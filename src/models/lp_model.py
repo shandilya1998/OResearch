@@ -301,10 +301,22 @@ class Model:
         print('Building Constraints.')
         for j in range(1, self.params['num_nodes'] - 1):
             self.solver.Add(np.sum(self.u, (1, 2))[j] == 1)
+
+        for v in range(self.params['num_vehicles']):
+            for h in range(self.params['num_trips']):
+                self.solver.Add(
+                    self.y[0][self.params['num_customers'] + 1][v][h] == 0
+                )
+                self.solver.Add(
+                    self.y[self.params['num_customers'] + 1][0][v][h] == 0
+                )
         for j in range(1, self.params['num_nodes']):
             for h in range(self.params['num_trips']):
                 for v in range(self.params['num_vehicles']):
                     self.solver.Add(self.u[0][v][h] >= self.u[j][v][h])
+                    self.solver.Add(self.u[
+                        self.params['num_customers'] + 1
+                    ][v][h] >= self.u[j][v][h])
         for v in range(self.params['num_vehicles']):
             for h in range(self.params['num_trips']):
                 self.solver.Add(
@@ -326,6 +338,16 @@ class Model:
                         self.solver.Add(
                             self.y[0][i][v][h] + \
                             self.y[0][j][v][h] + \
+                            self.u[i][v][h] + \
+                            self.u[j][v][h] <= 3
+                        )
+                        self.solver.Add(
+                            self.y[i][
+                                self.params['num_customers'] + 1
+                            ][v][h] + \
+                            self.y[j][
+                                self.params['num_customers'] + 1
+                            ][v][h] + \
                             self.u[i][v][h] + \
                             self.u[j][v][h] <= 3
                         )
@@ -368,7 +390,7 @@ class Model:
         for v in range(self.params['num_vehicles']):
             for h in range(self.params['num_trips']):
                 self.solver.Add(
-                    self.u[0][v][h] >= self.w[v]
+                    self.u[0][v][h] <= self.w[v]
                 )
         for p in range(self.params['num_products']):
             self.solver.Add(
@@ -385,6 +407,13 @@ class Model:
         self.solver.Add(
             np.sum(self.u, (1, 2))[0] == np.sum(self.d)
         )
+        self.solver.Add(
+            np.sum(self.u, (1, 2))[self.params['num_customers'] + 1] == \
+                np.sum(self.d)
+        )
+        self.solver.Add(
+            self.d[0] == 1
+        )
         for f in range(self.params['num_batches']-1):
             self.solver.Add(
                 self.d[f] >= self.d[f+1]
@@ -392,7 +421,12 @@ class Model:
         for v in range(self.params['num_vehicles']):
             for h in range(self.params['num_trips']):
                 self.solver.Add(
-                    np.sum(self.t, 0)[v][h] == self.u[0][v][h]
+                    np.sum(self.t, 0)[v][h] == self.u[j][v][h]
+                )
+                self.solver.Add(
+                    np.sum(self.t, 0)[v][h] == self.u[
+                        self.params['num_customers'] + 1
+                    ][v][h]
                 )
         for f in range(self.params['num_batches']):
             self.solver.Add(
@@ -418,6 +452,13 @@ class Model:
                             self.t[f][v][h] + 1 >= self.b[j - 1][f] + \
                                 self.u[j][v][h]
                         )
+
+        self.solver.Add(
+            self.g[0][self.params['num_batches'] - 1] == 0
+        )
+        self.solver.Add(
+            self.g[self.params['num_batches'] - 1][0] == 0
+        )
         for f in range(self.params['num_batches']):
             self.solver.Add(
                 np.sum(self.g, 0)[f] - self.g[f][f] == self.d[f]
@@ -425,6 +466,10 @@ class Model:
             self.solver.Add(
                 np.sum(self.g, 1)[f] - self.g[f][f] == self.d[f]
             )
+            for f_ in range(self.params['num_batches']):
+                self.solver.Add(
+                    self.g[f][f_] <= 1 - self.g[f][f_]
+                )
         for f in range(self.params['num_batches']):
             self.solver.Add(
                 np.sum(
@@ -480,6 +525,17 @@ class Model:
                                 self.params['travel_time'][i][j] - \
                                 self.params['M'] * (1 - self.y[i][j][v][h])
                         )
+                        self.solver.Add(
+                            self.a[j][v][h] >= self.st[v][h] + \
+                                self.params['service_time'][0] + \
+                                self.params['travel_time'][0][j] - \
+                                self.params['M'] * (
+                                    2 - \
+                                    self.u[j,v,h] - \
+                                    self.y[i,j,v,h]
+                                )
+                        )
+
         for v in range(self.params['num_vehicles']):
             for f in range(self.params['num_batches']):
                 for h in range(self.params['num_trips']):
@@ -488,16 +544,7 @@ class Model:
                             self.params['service_time'][0] - \
                             self.params['M'] * (1 - self.t[f,v, h])
                     )
-        for f in range(self.params['num_batches']):
-            for v in range(self.params['num_vehicles']):
-                for h in range(self.params['num_trips'] - 1):
-                    self.solver.Add(
-                        self.st[v][h + 1] >= self.a[
-                            self.params['num_nodes'] - 1
-                        ][v][h] + self.params['service_time'][
-                            self.params['num_nodes'] - 1
-                        ]
-                    )
+
         for j in range(1, self.params['num_nodes'] - 1):
             for v in range(self.params['num_vehicles']):
                 for h in range(self.params['num_trips']):
