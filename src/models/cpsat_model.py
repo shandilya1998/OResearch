@@ -298,9 +298,9 @@ class CPSATModel:
         for j in range(1, self.params['num_nodes'] - 1):
             self.model.Add(np.sum(self.u, (1, 2))[j] == 1)
 
-        for j in range(1, self.params['num_nodes']):
-            for h in range(self.params['num_trips']):
-                for v in range(self.params['num_vehicles']):
+        for j in range(1, self.params['num_nodes'] - 1):
+            for v in range(self.params['num_vehicles']):
+                for h in range(self.params['num_trips']):
                     self.model.Add(self.u[0][v][h] >= self.u[j][v][h])
                     self.model.Add(self.u[
                         self.params['num_customers'] + 1
@@ -325,6 +325,8 @@ class CPSATModel:
             for j in range(1, self.params['num_nodes'] - 1):
                 for v in range(self.params['num_vehicles']):
                     for h in range(self.params['num_trips']):
+                        if i == j:
+                            continue
                         self.model.Add(
                             self.y[0][i][v][h] + \
                             self.y[0][j][v][h] + \
@@ -381,20 +383,18 @@ class CPSATModel:
                         self.u[self.params['num_nodes'] - 1][v][h + 1]
                 )
 
-        """
         for v in range(self.params['num_vehicles']):
             for h in range(self.params['num_trips']):
                 self.model.Add(
                     self.u[0][v][h] >= self.w[v]
                 )
-        """
 
         for p in range(self.params['num_products']):
             for q in range(self.params['num_products']):
                 self.model.Add(
                     self.x[p][q] + self.x[q][p] <= 1
                 )
-        """
+
         for p in range(self.params['num_products']):
             self.model.Add(
                 np.sum(self.x, -1)[p] - self.x[p][p] == 1
@@ -402,13 +402,6 @@ class CPSATModel:
             self.model.Add(
                 np.sum(self.x, 0)[p] - self.x[p][p] == 1
             )
-        """
-
-        for p in range(self.params['num_products']):
-            for q in range(self.params['num_products']):
-                self.model.Add(
-                    self.x[p][q] <= 1 - self.x[q][p]
-                )
 
         self.model.Add(
             np.sum(self.u, (1, 2))[0] == np.sum(self.d)
