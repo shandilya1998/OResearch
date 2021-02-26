@@ -9,7 +9,7 @@ def run(
         solver = models.Model(
             params,
             solver
-        )   
+        )
         solver.build()
         print('---------------------')
         print('Number of Variables:')
@@ -28,6 +28,15 @@ def run(
         solver.build()
         status = solver.solve()
         print(status)
+        return solver
+
+    elif solver == 'PuLP':
+        print('Running Model')
+        solver = models.PuLPModel(
+            params
+        )
+        solver.build()
+        solver.solve()
         return solver
 
 if __name__ == '__main__':

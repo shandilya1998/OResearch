@@ -1,6 +1,6 @@
 import pulp
 
-class Model:
+class PuLPModel:
     def __init__(self, params):
         self.params = params
 
@@ -364,151 +364,188 @@ class Model:
         ]) == 0, \
             'Active Trips Production Batches Constraint 1'
 
-        self.model += self.d[(0],) == 1, 'First Batch Active Constraint'
+        self.model += self.d[(0),] == 1, 'First Batch Active Constraint'
 
         for f in range(self.params['num_batches']-2):
-            self.model += self.d[f] - self.d[f+1] >= 0, \
+            self.model += self.d[(f,)] - self.d[(f+1,)] >= 0, \
                 'Active Trips Production Batches Constraint 2 ({f,})'.format(
                     f=f
                 )
 
         for v in range(self.params['num_vehicles']):
             for h in range(self.params['num_trips']):
-                self.model.Add(
-                    np.sum(self.t, 0)[v][h] == self.u[0][v][h]
-                )
+                self.model += pulp.lpSum([
+                    self.t[(f,v,h)] \
+                        for f in range(self.params['num_batches'])
+                ]) == self.u[(0,v,h)], \
+                    'Active Trips Production Batch Mapping Constraint 3 \
+                        ({v},{h})'.format(f=f,v=v,h=h)
 
         for f in range(self.params['num_batches']):
-            self.model.Add(
-                self.d[f] == np.sum(self.t, (1, 2))[f]
-            )
+            self.model += self.d[f] - pulp.lpSum([
+                self.t[(f,v,h)] \
+                    for v in range(self.params['num_vehicles']) \
+                    for h in range(self.params['num_trips'])
+            ]) == 0, \
+                'Active Trips Production Batch Mapping Constraint 4 \
+                        ({f},)'.format(f=f)
 
         for j in range(self.params['num_customers']):
-            self.model.Add(
-                np.sum(self.b, -1)[j] == 1
-            )
-
-        for f in range(self.params['num_batches']):
-            for j in range(1, self.params['num_nodes'] - 1):
-                for v in range(self.params['num_vehicles']):
-                    for h in range(self.params['num_trips']):
-                        self.model.Add(
-                            self.b[j - 1][f] + 1 >= self.u[j][v][h] + \
-                                self.t[f][v][h]
-                        )
-
-        for f in range(self.params['num_batches']):
-            for j in range(1, self.params['num_nodes'] - 1):
-                for v in range(self.params['num_vehicles']):
-                    for h in range(self.params['num_trips']):
-                        self.model.Add(
-                            self.t[f][v][h] + 1 >= self.b[j - 1][f] + \
-                                self.u[j][v][h]
-                        )
-
-        for f in range(self.params['num_batches']):
-            self.model.Add(
-                np.sum(self.g, 0)[f] - self.g[f][f] == self.d[f]
-            )
-            self.model.Add(
-                np.sum(self.g, 1)[f] - self.g[f][f] == self.d[f]
-            )
-            for f_ in range(self.params['num_batches']):
-                self.model.Add(
-                    self.g[f][f_] <= 1 - self.g[f][f_]
+            self.model += pulp.lpSum([
+                self.b[(j,f)] \
+                    for f in range(self.params['num_batches'])
+            ]) == 1,
+                'Customer Production Batch Mapping Constraint ({j},{f})'.format(
+                    j=j
                 )
 
         for f in range(self.params['num_batches']):
-            self.model.Add(
-                np.sum(
-                    self.params['setup_time'] * self.x,
-                    (0, 1)
-                ) + sum([
-                    sum([
-                        self.params['process_time'][q] * \
+            for j in range(1, self.params['num_nodes'] - 1):
+                for v in range(self.params['num_vehicles']):
+                    for h in range(self.params['num_trips']):
+                        self.model += self.b[(j - 1,f)] - \
+                            self.u[(j,v,h)] - \
+                            self.t[(f,v,h)] >= -1, \
+                            'Customer Batch Trip Mapping Constraint \
+                            ({j},{f},{v},{h})'.format(j=j,f=f,v=v,h=h)
+
+        for f in range(self.params['num_batches']):
+            for j in range(1, self.params['num_nodes'] - 1):
+                for v in range(self.params['num_vehicles']):
+                    for h in range(self.params['num_trips']):
+                        self.model += self.t[(f,v,h)] - self.b[(j - 1,f)] - \
+                            self.u[(j,v,h)] >= -1, \
+                            'Batch Customer Trip Mapping Constraint \
+                            ({j},{f},{v},{h})'.format(j=j,f=f,v=v,h=h)
+
+        for f in range(self.params['num_batches']):
+            self.model += pulp.lpSum([
+                self.g[(f_, f) \
+                    for f_ in range(self.params['num_batches']) \
+                    if f_!= f
+            ]) - self.d[(f,)] == 0, \
+                'Batch Production Sequence Constraint 1 ({f},)'.format(f=f)
+
+            self.model += pulp.lpSum([
+                self.g[(f, f_)] \
+                    for f_ in range(self.params['num_batches']) \
+                    if f_!= f
+            ]) - self.d[(f,)] == 0, \
+                'Batch Production Sequence Constraint 2 ({f},)'.format(f=f)
+
+            for f_ in range(self.params['num_batches']):
+                self.model += self.g[(f,f_)] + self.g[(f,f_)] <= 1,
+                    'Batch Production Sequence Constraint 3 ({f},{f_})'.format(
+                        f=f, f_=f_
+                    )
+
+            self.model += pulp.lpSum([
+                self.params['setup_time'][p][q] * self.x[(p,q)] \
+                    for p in range(self.params['num_products']) \
+                    for q in range(self.params['num_products']) \
+                    if p!=q
+                ]) + pulp.lpSum([
+                    self.params['process_time'][q] * \
                         self.params['demand'][j][q] * \
-                        self.b[j - 1][f] \
+                        self.b[(j - 1,f)] \
                         for j in range(
                             1,
                             self.params['num_nodes'] - 1
-                        )
-                    ]) for q in range(self.params['num_products'])
-                ]) - self.params['M']*(1 - self.g[0][f]) <= \
-                    self.c[f]
-            )
+                        ) for q in range(self.params['num_products'])
+                ]) - self.params['M'] * (1 - self.g[(0,f)]) - self.c[(f,)] <= 0
+
             for f_ in range(self.params['num_batches']):
                 if f != f_:
-                    self.model.Add(
-                        self.c[f] + np.sum(
-                            self.params['setup_time'] * self.x,
-                            (0, 1)
-                        ) + sum([
-                            sum([
-                                self.params['process_time'][q] * \
+                    self.model += pulp.lpSum([
+                        self.params['setup_time'][p][q] * self.x[(p,q)] \
+                            for p in range(self.params['num_products']) \
+                            for q in range(self.params['num_products']) \
+                            if p!=q
+                        ]) + pulp.lpSum([
+                            self.params['process_time'][q] * \
                                 self.params['demand'][j][q] * \
-                                self.b[j - 1][f] \
+                                self.b[(j - 1,f_)] \
                                 for j in range(
                                     1,
                                     self.params['num_nodes'] - 1
-                                    )
-                            ]) for q in range(self.params['num_products'])
-                        ]) - self.params['M']*(1 - self.g[f][f_]) <= \
-                            self.c[f_]
-                    )
+                                ) for q in range(self.params['num_products'])
+                        ]) - self.params['M'] * (1 - self.g[(f,f_)]) + \
+                            self.c[(f,)] - self.c[(f_,)] <= 0
 
         for j in range(1, self.params['num_nodes']):
             for v in range(self.params['num_vehicles']):
                 for h in range(self.params['num_trips']):
                     for i in range(self.params['num_nodes'] - 1):
-                        self.model.Add(
-                            self.a[j][v][h] >= self.a[i][v][h] + \
-                                self.params['service_time'][i] + \
-                                self.params['travel_time'][i][j] - \
-                                self.params['M'] * (1 - self.y[i][j][v][h])
-                        )
-                        self.model.Add(
-                            self.a[j][v][h] >= self.st[v][h] + \
-                                self.params['service_time'][0] + \
-                                self.params['travel_time'][0][j] - \
+                        self.model += self.a[(j,v,h)] - self.a[(i,v,h)] - \
+                                self.params['service_time'][i] - \
+                                self.params['travel_time'][i][j] + \
+                                self.params['M'] * (1 - self.y[(i,j,v,h)])>=0, \
+                                    'Arrival Time Constraint 1 \
+                                    ({j},{v},{h},{i})'.format(j=j,v=v,h=h,i=i)
+
+                        self.model += self.a[(j,v,h)] - self.st[(v,h)] - \
+                                self.params['service_time'][0] - \
+                                self.params['travel_time'][0][j] + \
                                 self.params['M'] * (
                                     2 - \
-                                    self.u[j][v][h] - \
-                                    self.y[i][j][v][h]
-                                )
-                        )
+                                    self.u[(j,v,h)] - \
+                                    self.y[(i,j,v,h)]
+                                ) >= 0, \
+                                    'Arrival Time Constraint 2 \
+                                    ({j},{v},{h},{i})'.format(j=j,v=v,h=h,i=i)
 
         for v in range(self.params['num_vehicles']):
             for f in range(self.params['num_batches']):
                 for h in range(self.params['num_trips']):
-                    self.model.Add(
-                        self.st[v][h] >= self.c[f] + \
-                            self.params['service_time'][0] - \
-                            self.params['M'] * (1 - self.t[f,v, h])
-                    )
+                    self.model += self.st[(v,h)] - self.c[(f,)] - \
+                        self.params['service_time'][0] + \
+                        self.params['M'] * (1 - self.t[(f,v, h)]) >= 0, \
+                            'Start Time Constraint 1 ({v},{f},{h})'.format(
+                                v=v, f=f, h=h
+                            )
 
         for f in range(self.params['num_batches']):
             for v in range(self.params['num_vehicles']):
                 for h in range(self.params['num_trips'] - 1):
-                    self.model.Add(
-                        self.st[v][h+1] >= self.a[
-                            self.params['num_nodes'] - 1
-                        ][v][h] + self.params['service_time'][
-                            self.params['num_nodes'] - 1
-                        ] - self.params['M'] * (
-                            1 - self.u[0][v][h]
+                    self.model += self.st[(v,h+1)] - self.a[
+                        (self.params['num_nodes'] - 1,v,h)
+                    ] - self.params['service_time'][
+                        self.params['num_nodes'] - 1
+                    ] + self.params['M'] * (
+                        1 - self.u[(0,v,h)]
+                    ) >= 0, \
+                        'Start Time Consttraint 2 ({v},{f},{h})'.format(
+                            v=v, f=f, h=h
                         )
-                    )
 
         for j in range(1, self.params['num_nodes'] - 1):
             for v in range(self.params['num_vehicles']):
                 for h in range(self.params['num_trips']):
-                    self.model.Add(
-                        self.e[j][v][h] >= \
-                        self.params['time_windows'][j][0] - self.a[j][v][h]
-                    )
+                    self.model += self.e[(j,v,h)] + self.a[(j,v,h)] >= \
+                        self.params['time_windows'][j][0], \
+                            'Time Window Constraint 1 ({j},{v},{h})'.format(
+                                j=j,v=v,h=h
+                            )
 
-                    self.model.Add(
-                        self.l[j][v][h] >= self.a[j][v][h] - self.params[
+                    self.model += self.l[(j,v,h)] - self.a[(j,v,h)] + \
+                        self.params[
                             'time_windows'
-                        ][j][1]
-                    )
+                        ][j][1] >= 0,
+                            'Time Window Constraint 2 ({j},{v},{h})'.format(
+                                j=j,v=v,h=h
+                            )
+
+    def solve(self):
+        self.model.solve()
+        print("Status:", pulp.LpStatus[self.model.status])
+
+    def get_solution(self):
+        solution = {
+            v.name : v.varValue \
+                for v in self.model.variables()
+        }
+        solution.update({
+            'objective' : pulp.value(gemstoneprob.objective)
+        })
+        return solution
+

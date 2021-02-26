@@ -11,10 +11,10 @@ output_path = 'outputs'
 """
 #"""
 params = None
-model = 'CPSAT'
+model = 'PULP'
 if model == 'CPSAT':
     params = src.constants.get_params(int)
-elif model == 'MILP':
+elif model == 'MILP' or model == 'PULP':
     params = src.constants.get_params(int)
 
 solver = src.run(
