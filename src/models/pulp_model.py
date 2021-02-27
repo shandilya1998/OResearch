@@ -206,9 +206,9 @@ class PuLPModel:
             self.constraint12,
             self.constraint13,
             self.constraint14,
-            #self.constraint15,
-            #self.constraint16,
-            #self.constraint17,
+            self.constraint15,
+            self.constraint16,
+            self.constraint17,
             #self.constraint18,
             #self.constraint19,
             #self.constraint20,
@@ -473,6 +473,9 @@ class PuLPModel:
                             ({j},{f},{v},{h})'.format(j=j,f=f,v=v,h=h)
 
     def constraint18(self):
+        """
+            This conflicts with one of the constraints between 1 to 17
+        """
         for f in range(self.params['num_batches']):
             self.model += pulp.lpSum([
                 self.g[(f_, f)] \
