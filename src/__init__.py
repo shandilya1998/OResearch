@@ -30,7 +30,7 @@ def run(
         print(status)
         return solver
 
-    elif solver == 'PuLP':
+    elif solver == 'PULP':
         print('Running Model')
         solver = models.PuLPModel(
             params
@@ -42,4 +42,4 @@ def run(
 if __name__ == '__main__':
     run(
         constants.params
-    )   
+    )

@@ -1,4 +1,5 @@
 import pulp
+import numpy as np
 
 class PuLPModel:
     def __init__(self, params):
@@ -64,7 +65,7 @@ class PuLPModel:
         )
 
         indices = []
-        for j in range(self.params['num_customers'])
+        for j in range(self.params['num_customers']):
             for f in range(self.params['num_batches']):
                 indices.append((j,f))
         self.b = pulp.LpVariable.dicts(
@@ -113,7 +114,7 @@ class PuLPModel:
         for j in range(self.params['num_nodes']):
             for v in range(self.params['num_vehicles']):
                 for h in range(self.params['num_trips']):
-                    indices.append((f,v,h))
+                    indices.append((j,v,h))
         self.u = pulp.LpVariable.dicts(
             'CustomerVehicleTripMapping',
             indices,
@@ -159,7 +160,7 @@ class PuLPModel:
             for j in range(1, self.params['num_nodes'] - 1):
                 for v in range(self.params['num_vehicles']):
                     for h in range(self.params['num_trips']):
-                        indices_y.appnd((i,j,v,h))
+                        indices_y.append((i,j,v,h))
         indices_t = []
         for j in range(1, self.params['num_nodes'] - 1):
             for v in range(self.params['num_vehicles']):
@@ -178,7 +179,7 @@ class PuLPModel:
                 self.params['travel_time'][i][j] * self.y[(i, j, v, h)] \
                 for i, j, v, h in indices_y
         ] + [
-            self.params['vehicle_cost'][v] * self.x[(v,)] \
+            self.params['vehicle_cost'][v] * self.w[(v,)] \
                 for v in range(self.params['num_vehicles'])
         ] + [
             self.params['early_delivery_penalty'] * \
@@ -189,18 +190,49 @@ class PuLPModel:
         ]), "minimization objective"
 
         print('Building Constraint.')
+
+        lst_constraints = [
+            self.constraint1,
+            self.constraint2,
+            self.constraint3,
+            self.constraint4,
+            self.constraint5,
+            self.constraint6,
+            self.constraint7,
+            self.constraint8,
+            self.constraint9,
+            self.constraint10,
+            self.constraint11,
+            self.constraint12,
+            self.constraint13,
+            self.constraint14,
+            #self.constraint15,
+            #self.constraint16,
+            #self.constraint17,
+            #self.constraint18,
+            #self.constraint19,
+            #self.constraint20,
+            #self.constraint21,
+            #self.constraint22,
+        ]
+
+        for constraint in lst_constraints:
+            constraint()
+
+    def constraint1(self):
         for j in range(1, self.params['num_nodes'] - 1):
             self.model += pulp.lpSum([
                 self.u[(j, v, h)] \
                 for v in range(self.params['num_vehicles']) \
                 for h in range(self.params['num_trips'])
-            ]) == 1. 'Single Vist Contraint {j}'.format(j=j)
+            ]) == 1, 'Single Vist Contraint {j}'.format(j=j)
 
+    def constraint2(self):
         for j in range(1, self.params['num_nodes'] - 1):
             for v in range(self.params['num_vehicles']):
                 for h in range(self.params['num_trips']):
                     self.model += self.u[(0, v, h)] - self.u[(j,v,h)] >= 0, \
-                        'Active Tour Origin Constraint {(j},{v},{h})'.format(
+                        'Active Tour Origin Constraint 1 ({j},{v},{h})'.format(
                             j = j,
                             v = v,
                             h = h
@@ -209,12 +241,13 @@ class PuLPModel:
                     self.model += self.u[(self.params[
                             'num_nodes'
                         ] - 1, v, h)] - self.u[(j,v,h)] >= 0, \
-                        'Active Tour Origin Constraint {(j},{v},{h})'.format(
+                        'Active Tour Origin Constraint 2 ({j},{v},{h})'.format(
                             j = j,
                             v = v,
                             h = h
                         )
 
+    def constraint3(self):
         for v in range(self.params['num_vehicles']):
             for h in range(self.params['num_trips']):
                 self.model += pulp.lpSum([
@@ -226,12 +259,12 @@ class PuLPModel:
                         self.params['num_nodes'] - 1
                     )
                 ]) <= self.params['vehicle_capacity'][v], \
-                    'Total Vehicle Capacity Constraint ({j},{v},{h})'.format(
-                        j=j,
+                    'Total Vehicle Capacity Constraint ({v},{h})'.format(
                         v=v,
                         h=h
                     )
 
+    def constraint4(self):
         for i in range(1, self.params['num_nodes'] - 1):
             for j in range(1, self.params['num_nodes'] - 1):
                 for v in range(self.params['num_vehicles']):
@@ -260,6 +293,7 @@ class PuLPModel:
                                 h=h,
                             )
 
+    def constraint5(self):
         for j in range(1, self.params['num_nodes'] - 1):
             for v in range(self.params['num_vehicles']):
                 for h in range(self.params['num_trips']):
@@ -267,7 +301,7 @@ class PuLPModel:
                         self.y[(i,j,v,h)] for i in range(
                             self.params['num_customers'] + 1
                         )
-                    ]) + self.y[j][j][v][h]  == 0, \
+                    ]) + self.y[(j,j,v,h)]  == 0, \
                         'Trip Middle Contraint 1 ({j},{v},{h})'.format(
                             j=j,
                             v=v,
@@ -278,13 +312,13 @@ class PuLPModel:
                         self.y[(i,j,v,h)] for i in range(
                             1, self.params['num_nodes']
                         )
-                    ]) + self.y[j][j][v][h]  == 0, \
+                    ]) + self.y[(j,j,v,h)]  == 0, \
                         'Trip Middle Contraint 2 ({j},{v},{h})'.format(
                             j=j,
                             v=v,
                             h=h
                         )
-
+    def constraint6(self):
         for i in range(1, self.params['num_nodes'] - 1):
             for j in range(1, self.params['num_nodes'] - 1):
                 for v in range(self.params['num_vehicles']):
@@ -306,7 +340,7 @@ class PuLPModel:
                                 v=v,
                                 h=h
                             )
-
+    def constraint7(self):
         for v in range(self.params['num_vehicles']):
             for h in range(self.params['num_trips'] - 1):
                 self.model += pulp.lpSum([
@@ -321,6 +355,7 @@ class PuLPModel:
                         h = h
                     )
 
+    def constraint8(self):
         for v in range(self.params['num_vehicles']):
             for h in range(self.params['num_trips']):
                 self.model += self.u[(0,v,h)] - self.w[(v,)] >= 0, \
@@ -329,6 +364,7 @@ class PuLPModel:
                         h = h
                     )
 
+    def constraint9(self):
         for p in range(self.params['num_products']):
             for q in range(self.params['num_products']):
                 self.model += self.x[(p,q)] + self.x[(q,p)] <= 1, \
@@ -337,23 +373,27 @@ class PuLPModel:
                         q = q
                     )
 
+    def constraint10(self):
         for p in range(self.params['num_products']):
             self.model += pulp.lpSum([
                 self.x[(p, q)] \
-                    for q in range(self.params['num_products'])
-            ]) - self.x[p][p] == 1, \
+                    for q in range(self.params['num_products']) \
+                    if p!=q
+            ]) == 1, \
                 'Product Scheduling Constraint 1 ({p},)'.format(
                     p = p,
                 )
 
             self.model += pulp.lpSum([
                 self.x[(q,p)] \
-                    for q in range(self.params['num_prodcuts'])
-            ]) - self.x[p][p] == 1, \
-                'Product Scheduling Constraint 1 ({p},)'.format(
+                    for q in range(self.params['num_products']) \
+                    if p!=q
+            ]) == 1, \
+                'Product Scheduling Constraint 2 ({p},)'.format(
                     p = p,
                 )
 
+    def constraint11(self):
         self.model += pulp.lpSum([
             self.u[(0,v,h)] \
                 for v in range(self.params['num_vehicles']) \
@@ -364,25 +404,36 @@ class PuLPModel:
         ]) == 0, \
             'Active Trips Production Batches Constraint 1'
 
+    def constraint12(self):
         self.model += self.d[(0),] == 1, 'First Batch Active Constraint'
 
         for f in range(self.params['num_batches']-2):
             self.model += self.d[(f,)] - self.d[(f+1,)] >= 0, \
-                'Active Trips Production Batches Constraint 2 ({f,})'.format(
+                'Active Trips Production Batches Constraint 2 ({f},)'.format(
                     f=f
                 )
 
+    def constraint13(self):
+        """
+            Abnormal Behaviour observed after the addition of this constraint
+            Optimal Solution is obtained, but the problem begins to
+                take more time to solve
+        """
         for v in range(self.params['num_vehicles']):
             for h in range(self.params['num_trips']):
                 self.model += pulp.lpSum([
                     self.t[(f,v,h)] \
                         for f in range(self.params['num_batches'])
-                ]) == self.u[(0,v,h)], \
+                ]) - self.u[(0,v,h)] == 0, \
                     'Active Trips Production Batch Mapping Constraint 3 \
-                        ({v},{h})'.format(f=f,v=v,h=h)
+                        ({v},{h})'.format(v=v,h=h)
 
+    def constraint14(self):
+        """
+            Solving time exploded after addition of 14
+        """
         for f in range(self.params['num_batches']):
-            self.model += self.d[f] - pulp.lpSum([
+            self.model += self.d[(f,)] - pulp.lpSum([
                 self.t[(f,v,h)] \
                     for v in range(self.params['num_vehicles']) \
                     for h in range(self.params['num_trips'])
@@ -390,15 +441,17 @@ class PuLPModel:
                 'Active Trips Production Batch Mapping Constraint 4 \
                         ({f},)'.format(f=f)
 
+    def constraint15(self):
         for j in range(self.params['num_customers']):
             self.model += pulp.lpSum([
                 self.b[(j,f)] \
                     for f in range(self.params['num_batches'])
-            ]) == 1,
-                'Customer Production Batch Mapping Constraint ({j},{f})'.format(
-                    j=j
+            ]) == 1, \
+                'Customer Production Batch Mapping Constraint ({j},)'.format(
+                    j=j,
                 )
 
+    def constraint16(self):
         for f in range(self.params['num_batches']):
             for j in range(1, self.params['num_nodes'] - 1):
                 for v in range(self.params['num_vehicles']):
@@ -409,6 +462,7 @@ class PuLPModel:
                             'Customer Batch Trip Mapping Constraint \
                             ({j},{f},{v},{h})'.format(j=j,f=f,v=v,h=h)
 
+    def constraint17(self):
         for f in range(self.params['num_batches']):
             for j in range(1, self.params['num_nodes'] - 1):
                 for v in range(self.params['num_vehicles']):
@@ -418,9 +472,10 @@ class PuLPModel:
                             'Batch Customer Trip Mapping Constraint \
                             ({j},{f},{v},{h})'.format(j=j,f=f,v=v,h=h)
 
+    def constraint18(self):
         for f in range(self.params['num_batches']):
             self.model += pulp.lpSum([
-                self.g[(f_, f) \
+                self.g[(f_, f)] \
                     for f_ in range(self.params['num_batches']) \
                     if f_!= f
             ]) - self.d[(f,)] == 0, \
@@ -434,7 +489,7 @@ class PuLPModel:
                 'Batch Production Sequence Constraint 2 ({f},)'.format(f=f)
 
             for f_ in range(self.params['num_batches']):
-                self.model += self.g[(f,f_)] + self.g[(f,f_)] <= 1,
+                self.model += self.g[(f,f_)] + self.g[(f,f_)] <= 1, \
                     'Batch Production Sequence Constraint 3 ({f},{f_})'.format(
                         f=f, f_=f_
                     )
@@ -472,6 +527,7 @@ class PuLPModel:
                         ]) - self.params['M'] * (1 - self.g[(f,f_)]) + \
                             self.c[(f,)] - self.c[(f_,)] <= 0
 
+    def constraint19(self):
         for j in range(1, self.params['num_nodes']):
             for v in range(self.params['num_vehicles']):
                 for h in range(self.params['num_trips']):
@@ -494,6 +550,7 @@ class PuLPModel:
                                     'Arrival Time Constraint 2 \
                                     ({j},{v},{h},{i})'.format(j=j,v=v,h=h,i=i)
 
+    def constraint20(self):
         for v in range(self.params['num_vehicles']):
             for f in range(self.params['num_batches']):
                 for h in range(self.params['num_trips']):
@@ -504,6 +561,7 @@ class PuLPModel:
                                 v=v, f=f, h=h
                             )
 
+    def constraint21(self):
         for f in range(self.params['num_batches']):
             for v in range(self.params['num_vehicles']):
                 for h in range(self.params['num_trips'] - 1):
@@ -518,6 +576,7 @@ class PuLPModel:
                             v=v, f=f, h=h
                         )
 
+    def constraint22(self):
         for j in range(1, self.params['num_nodes'] - 1):
             for v in range(self.params['num_vehicles']):
                 for h in range(self.params['num_trips']):
@@ -530,7 +589,7 @@ class PuLPModel:
                     self.model += self.l[(j,v,h)] - self.a[(j,v,h)] + \
                         self.params[
                             'time_windows'
-                        ][j][1] >= 0,
+                        ][j][1] >= 0, \
                             'Time Window Constraint 2 ({j},{v},{h})'.format(
                                 j=j,v=v,h=h
                             )
@@ -545,7 +604,7 @@ class PuLPModel:
                 for v in self.model.variables()
         }
         solution.update({
-            'objective' : pulp.value(gemstoneprob.objective)
+            'objective' : pulp.value(self.model.objective)
         })
         return solution
 
