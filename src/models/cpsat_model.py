@@ -457,10 +457,12 @@ class CPSATModel:
             self.model.Add(
                 np.sum(self.g, 1)[f] - self.g[f][f] == self.d[f]
             )
+            """"
             for f_ in range(self.params['num_batches']):
                 self.model.Add(
                     self.g[f][f_] <= 1 - self.g[f][f_]
                 )
+            """
 
         for f in range(self.params['num_batches']):
             self.model.Add(

@@ -158,9 +158,7 @@ class PuLPModel:
         indices_y = []
         for i in range(1, self.params['num_nodes'] - 1):
             for j in range(1, self.params['num_nodes'] - 1):
-                for v in range(self.params['num_vehicles']):
-                    for h in range(self.params['num_trips']):
-                        indices_y.append((i,j,v,h))
+                indices_y.append((i,j))
         indices_t = []
         for j in range(1, self.params['num_nodes'] - 1):
             for v in range(self.params['num_vehicles']):
@@ -176,8 +174,8 @@ class PuLPModel:
                 for p, q in indices_x
         ] + [
             self.params['travel_cost'] * \
-                self.params['travel_time'][i][j] * self.y[(i, j, v, h)] \
-                for i, j, v, h in indices_y
+                self.params['travel_time'][i][j] * self.y[(i, j)] \
+                for i, j in indices_y
         ] + [
             self.params['vehicle_cost'][v] * self.w[(v,)] \
                 for v in range(self.params['num_vehicles'])
@@ -196,7 +194,6 @@ class PuLPModel:
             self.constraint2,
             self.constraint3,
             self.constraint4,
-            self.constraint5,
             self.constraint6,
             self.constraint7,
             self.constraint8,
@@ -209,11 +206,11 @@ class PuLPModel:
             self.constraint15,
             self.constraint16,
             self.constraint17,
-            #self.constraint18,
-            #self.constraint19,
-            #self.constraint20,
-            #self.constraint21,
-            #self.constraint22,
+            self.constraint18,
+            self.constraint19,
+            self.constraint20,
+            self.constraint21,
+            self.constraint22,
         ]
 
         for constraint in lst_constraints:
@@ -271,8 +268,8 @@ class PuLPModel:
                     for h in range(self.params['num_trips']):
                         if i == j:
                             continue
-                        self.model += self.y[(0,i,v,h)] + \
-                            self.y[(0,j,v,h)] + \
+                        self.model += self.y[(0,i)] + \
+                            self.y[(0,j)] + \
                             self.u[(i,v,h)] + \
                             self.u[(j,v,h)] <= 3, \
                             'TripStartConstraint({i},{j},{v},{h})'.format(
@@ -282,8 +279,8 @@ class PuLPModel:
                                 h=h,
                             )
 
-                        self.model+=self.y[(i,self.params['num_nodes']-1,v,h)]+\
-                            self.y[(j,self.params['num_nodes']-1,v,h)] + \
+                        self.model+=self.y[(i,self.params['num_nodes']-1)]+\
+                            self.y[(j,self.params['num_nodes']-1)] + \
                             self.u[(i,v,h)] + \
                             self.u[(j,v,h)] <= 3, \
                             'TripEndConstraint({i},{j},{v},{h})'.format(
@@ -294,14 +291,17 @@ class PuLPModel:
                             )
 
     def constraint5(self):
+        """
+            Removed in Model2
+        """
         for j in range(1, self.params['num_nodes'] - 1):
             for v in range(self.params['num_vehicles']):
                 for h in range(self.params['num_trips']):
                     self.model += self.u[(j,v,h)] - pulp.lpSum([
-                        self.y[(i,j,v,h)] for i in range(
+                        self.y[(i,j)] for i in range(
                             self.params['num_customers'] + 1
-                        )
-                    ]) + self.y[(j,j,v,h)]  == 0, \
+                        ) if i != j
+                    ]) == 0, \
                         'TripMiddleContraint1({j},{v},{h})'.format(
                             j=j,
                             v=v,
@@ -309,10 +309,10 @@ class PuLPModel:
                         )
 
                     self.model += self.u[(j,v,h)] - pulp.lpSum([
-                        self.y[(i,j,v,h)] for i in range(
+                        self.y[(i,j)] for i in range(
                             1, self.params['num_nodes']
-                        )
-                    ]) + self.y[(j,j,v,h)]  == 0, \
+                        ) if i != j
+                    ]) == 0, \
                         'TripMiddleContraint2({j},{v},{h})'.format(
                             j=j,
                             v=v,
@@ -323,7 +323,7 @@ class PuLPModel:
             for j in range(1, self.params['num_nodes'] - 1):
                 for v in range(self.params['num_vehicles']):
                     for h in range(self.params['num_trips']):
-                        self.model += self.u[(i,v,h)] - self.y[(i,j,v,h)] - \
+                        self.model += self.u[(i,v,h)] - self.y[(i,j)] - \
                             self.u[(j,v,h)] >= -1, \
                             'TripMiddleConstraint3({i},{j},{v},{h})'.format(
                                 i=i,
@@ -332,7 +332,7 @@ class PuLPModel:
                                 h=h
                                 )
 
-                        self.model += self.u[(j,v,h)] - self.y[(i,j,v,h)] - \
+                        self.model += self.u[(j,v,h)] - self.y[(i,j)] - \
                             self.u[(i,v,h)] >= -1, \
                             'TripMiddleConstraint4({i},{j},{v},{h})'.format(
                                 i=i,
@@ -491,11 +491,13 @@ class PuLPModel:
             ]) - self.d[(f,)] == 0, \
                 'BatchProductionSequenceConstraint2({f},)'.format(f=f)
 
+            """
             for f_ in range(self.params['num_batches']):
                 self.model += self.g[(f,f_)] + self.g[(f,f_)] <= 1, \
                     'BatchProductionSequenceConstraint3({f},{f_})'.format(
                         f=f, f_=f_
                     )
+            """
 
             self.model += pulp.lpSum([
                 self.params['setup_time'][p][q] * self.x[(p,q)] \
@@ -545,7 +547,7 @@ class PuLPModel:
                         self.model += self.a[(j,v,h)] - self.a[(i,v,h)] - \
                                 self.params['service_time'][i] - \
                                 self.params['travel_time'][i][j] + \
-                                self.params['M'] * (1 - self.y[(i,j,v,h)])>=0, \
+                                self.params['M'] * (1 - self.y[(i,j)])>=0, \
                                     'ArrivalTimeConstraint1\
                                     ({j},{v},{h},{i})'.format(j=j,v=v,h=h,i=i)
 
@@ -555,7 +557,7 @@ class PuLPModel:
                                 self.params['M'] * (
                                     2 - \
                                     self.u[(j,v,h)] - \
-                                    self.y[(i,j,v,h)]
+                                    self.y[(i,j)]
                                 ) >= 0, \
                                     'ArrivalTimeConstraint2\
                                     ({j},{v},{h},{i})'.format(j=j,v=v,h=h,i=i)
