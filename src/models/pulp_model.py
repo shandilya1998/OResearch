@@ -291,33 +291,68 @@ class PuLPModel:
                             )
 
     def constraint5(self):
-        """
-            Removed in Model2
-        """
         for j in range(1, self.params['num_nodes'] - 1):
-            for v in range(self.params['num_vehicles']):
-                for h in range(self.params['num_trips']):
-                    self.model += self.u[(j,v,h)] - pulp.lpSum([
-                        self.y[(i,j)] for i in range(
-                            self.params['num_customers'] + 1
-                        ) if i != j
-                    ]) == 0, \
-                        'TripMiddleContraint1({j},{v},{h})'.format(
-                            j=j,
-                            v=v,
-                            h=h
-                        )
+            self.model += pulp.lpSum([
+                self.y[(i,j)] \
+                    for i in range(self.params['num_nodes']) \
+                    if i != j
+            ]) == 1, \
+                'TripMiddleContraint3({j},)'.format(
+                    j=j,
+                )
 
-                    self.model += self.u[(j,v,h)] - pulp.lpSum([
-                        self.y[(i,j)] for i in range(
-                            1, self.params['num_nodes']
-                        ) if i != j
-                    ]) == 0, \
-                        'TripMiddleContraint2({j},{v},{h})'.format(
-                            j=j,
-                            v=v,
-                            h=h
-                        )
+            self.model += self.y[(j,j)] == 0,
+                'TripMiddleContraint4({j},)'.format(
+                    j=j,
+                )
+
+            self.model += pulp.lpSum([
+                self.u[(j,v,h)] \
+                    for v in range(self.params['num_vehicles']) \
+                    for h in range(self.params['num_vehicles'])
+            ]) - pulp.lpSum([
+                self.y[(i,j)] for i in range(
+                    self.params['num_customers'] + 1
+                ) if i != j
+            ]) == 0, \
+                'TripMiddleContraint1({j},)'.format(
+                    j=j,
+                )
+
+            self.model += pulp.lpSum([
+                self.u[(j,v,h)] \
+                    for v in range(self.params['num_vehicles']) \
+                    for h in range(self.params['num_vehicles'])
+            ]) - pulp.lpSum([
+                self.y[(i,j)] for i in range(
+                    1, self.params['num_nodes']
+                ) if i != j
+            ]) == 0, \
+                'TripMiddleContraint2({j},)'.format(
+                    j=j,
+                )
+
+            for i in range(1, self.params['num_nodes'] - 1):
+                for v in range(self.params['num_vehicles']):
+                    for h in rnage(self.params['num_trips']):
+                        self.model += self.u[(i,v,h)] + self.u[(j,v,h)] - \
+                            2 * self.y[(i,j)] >= 0, \
+                                'TripMiddleContraint5({i},{j},{v},{h})'.format(
+                                    j=j,
+                                    i=i,
+                                    v=v,
+                                    h=h
+                                )
+
+                        self.model += self.u[(i,v,h)] + self.u[(j,v,h)] - \
+                            2 * self.y[(i,j)] <= 1, \
+                                'TripMiddleContraint6({i},{j},{v},{h})'.format(
+                                    j=j,
+                                    i=i,
+                                    v=v,
+                                    h=h
+                                )
+
     def constraint6(self):
         for i in range(1, self.params['num_nodes'] - 1):
             for j in range(1, self.params['num_nodes'] - 1):

@@ -11,7 +11,7 @@ output_path = 'outputs'
 """
 #"""
 params = None
-model = 'PULP'
+model = 'CPSAT'
 if model == 'CPSAT':
     params = src.constants.get_params(int)
 elif model == 'MILP' or model == 'PULP':
