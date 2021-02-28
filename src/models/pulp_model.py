@@ -126,9 +126,7 @@ class PuLPModel:
         indices = []
         for i in range(self.params['num_nodes']):
             for j in range(self.params['num_nodes']):
-                for v in range(self.params['num_vehicles']):
-                    for h in range(self.params['num_trips']):
-                        indices.append((i,j,v,h))
+                indices.append((i,j))
         self.y = pulp.LpVariable.dicts(
             'CustomerVehicleTripSequence',
             indices,
@@ -301,7 +299,7 @@ class PuLPModel:
                     j=j,
                 )
 
-            self.model += self.y[(j,j)] == 0,
+            self.model += self.y[(j,j)] == 0, \
                 'TripMiddleContraint4({j},)'.format(
                     j=j,
                 )
@@ -331,27 +329,6 @@ class PuLPModel:
                 'TripMiddleContraint2({j},)'.format(
                     j=j,
                 )
-
-            for i in range(1, self.params['num_nodes'] - 1):
-                for v in range(self.params['num_vehicles']):
-                    for h in rnage(self.params['num_trips']):
-                        self.model += self.u[(i,v,h)] + self.u[(j,v,h)] - \
-                            2 * self.y[(i,j)] >= 0, \
-                                'TripMiddleContraint5({i},{j},{v},{h})'.format(
-                                    j=j,
-                                    i=i,
-                                    v=v,
-                                    h=h
-                                )
-
-                        self.model += self.u[(i,v,h)] + self.u[(j,v,h)] - \
-                            2 * self.y[(i,j)] <= 1, \
-                                'TripMiddleContraint6({i},{j},{v},{h})'.format(
-                                    j=j,
-                                    i=i,
-                                    v=v,
-                                    h=h
-                                )
 
     def constraint6(self):
         for i in range(1, self.params['num_nodes'] - 1):
