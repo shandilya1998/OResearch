@@ -1,9 +1,15 @@
 import pulp
+import os
 import numpy as np
 
 class PuLPModel:
     def __init__(self, params):
         self.params = params
+        if os.path.exists('temp'):
+            os.rmdir('temp')
+        os.mkdir('temp')
+        self.tmp_file_dir = 'temp'
+        pulp.LpSolverDefault.tmpDir = self.tmp_file_dir
 
     def build(self):
         print('Building Variables.')
@@ -489,6 +495,7 @@ class PuLPModel:
             This conflicts with one of the constraints between 1 to 17
         """
         for f in range(self.params['num_batches']):
+            """
             self.model += pulp.lpSum([
                 self.g[(f_, f)] \
                     for f_ in range(self.params['num_batches']) \
@@ -502,15 +509,12 @@ class PuLPModel:
                     if f_!= f
             ]) - self.d[(f,)] == 0, \
                 'BatchProductionSequenceConstraint2({f},)'.format(f=f)
-
-            """
             for f_ in range(self.params['num_batches']):
                 self.model += self.g[(f,f_)] + self.g[(f,f_)] <= 1, \
                     'BatchProductionSequenceConstraint3({f},{f_})'.format(
                         f=f, f_=f_
                     )
             """
-
             self.model += pulp.lpSum([
                 self.params['setup_time'][p][q] * self.x[(p,q)] \
                     for p in range(self.params['num_products']) \
@@ -619,8 +623,14 @@ class PuLPModel:
                             )
 
     def solve(self):
-        self.model.solve()
-        print("Status:", pulp.LpStatus[self.model.status])
+        solver = self.params['pulp_solver']
+        if solver == 'GUROBI':
+            solver = pulp.GUROBI_CMD()
+            self.model.solve(solver)
+            print("Status:", pulp.LpStatus[self.model.status])
+        else:
+            self.model.solve(solver)
+            print("Status:", pulp.LpStatus[self.model.status])
 
     def get_solution(self):
         solution = {
