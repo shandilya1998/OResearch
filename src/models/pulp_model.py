@@ -1,6 +1,7 @@
 import pulp
 import os
 import numpy as np
+from tqdm import tqdm
 
 class PuLPModel:
     def __init__(self, params):
@@ -217,7 +218,7 @@ class PuLPModel:
             self.constraint22,
         ]
 
-        for constraint in lst_constraints:
+        for constraint in tqdm(lst_constraints):
             constraint()
 
     def constraint1(self):
@@ -502,19 +503,18 @@ class PuLPModel:
                     if f_!= f
             ]) - self.d[(f,)] == 0, \
                 'BatchProductionSequenceConstraint1({f},)'.format(f=f)
-
             self.model += pulp.lpSum([
                 self.g[(f, f_)] \
                     for f_ in range(self.params['num_batches']) \
                     if f_!= f
             ]) - self.d[(f,)] == 0, \
                 'BatchProductionSequenceConstraint2({f},)'.format(f=f)
+            """
             for f_ in range(self.params['num_batches']):
                 self.model += self.g[(f,f_)] + self.g[(f,f_)] <= 1, \
                     'BatchProductionSequenceConstraint3({f},{f_})'.format(
                         f=f, f_=f_
                     )
-            """
             self.model += pulp.lpSum([
                 self.params['setup_time'][p][q] * self.x[(p,q)] \
                     for p in range(self.params['num_products']) \
@@ -623,6 +623,7 @@ class PuLPModel:
                             )
 
     def solve(self):
+        print('Solving Problem.')
         solver = self.params['pulp_solver']
         if solver == 'GUROBI':
             solver = pulp.GUROBI_CMD()
