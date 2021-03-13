@@ -2,6 +2,9 @@ import pulp
 import os
 import numpy as np
 from tqdm import tqdm
+import pandas as pd
+import os
+import xlsxwriter
 
 class PuLPModel:
     def __init__(self, params):
@@ -14,12 +17,14 @@ class PuLPModel:
 
     def build(self):
         print('Building Variables.')
+        self.id = {}
         indices = [(f,) for f in range(self.params['num_batches'])]
         self.s = pulp.LpVariable.dicts(
             'ProductionStartTime',
             indices,
             lowBound = 0,
         )
+        #self.id['ProductionStartTime'] = (indices, ('batch'))
 
         indices = [(f,) for f in range(self.params['num_batches'])]
         self.c = pulp.LpVariable.dicts(
@@ -27,6 +32,7 @@ class PuLPModel:
             indices,
             lowBound = 0,
         )
+        self.id['ProductionCompletionTime'] = (indices, ('batch'))
 
         indices = []
         for v in range(self.params['num_vehicles']):
@@ -37,6 +43,7 @@ class PuLPModel:
             indices,
             lowBound = 0,
         )
+        self.id['DeliveryStartTime'] = (indices, ('vehicle', 'trips'))
 
         indices = []
         for j in range(self.params['num_nodes']):
@@ -48,16 +55,20 @@ class PuLPModel:
             indices,
             lowBound = 0,
         )
+        self.id['ArrivalTime'] = (indices ,('customer', 'vehicle', 'trip'))
+
         self.e = pulp.LpVariable.dicts(
             'EarlyArrivalTime',
             indices,
             lowBound = 0,
         )
+        self.id['EarlyArrivalTime'] = (indices, ('customer', 'vehicle', 'trip'))
         self.l = pulp.LpVariable.dicts(
             'LateArrivalTime',
             indices,
             lowBound = 0,
         )
+        self.id['LateArrivalTime'] = (indices, ('customer', 'vehicle', 'trip'))
 
         indices = []
         for p in range(self.params['num_products']):
@@ -70,6 +81,7 @@ class PuLPModel:
             upBound = 1,
             cat = pulp.LpInteger
         )
+        self.id['ProductSequence'] = (indices, ('product', 'product'))
 
         indices = []
         for j in range(self.params['num_customers']):
@@ -82,6 +94,7 @@ class PuLPModel:
             upBound = 1,
             cat = pulp.LpInteger
         )
+        self.id['BatchCustomerMapping'] = (indices, ('customer', 'batch'))
 
         indices = indices = [(f,) for f in range(self.params['num_batches'])]
         self.d = pulp.LpVariable.dicts(
@@ -91,6 +104,7 @@ class PuLPModel:
             upBound = 1,
             cat = pulp.LpInteger
         )
+        self.id['ActiveBatchMap'] = (indices, ('batch'))
 
         indices = []
         for f in range(self.params['num_batches']):
@@ -103,6 +117,7 @@ class PuLPModel:
             upBound = 1,
             cat = pulp.LpInteger
         )
+        self.id['BatchSequence'] = (indices, ('batch', 'batch'))
 
         indices = []
         for f in range(self.params['num_batches']):
@@ -116,6 +131,7 @@ class PuLPModel:
             upBound = 1,
             cat = pulp.LpInteger
         )
+        self.id['BatchVehicleTripMapping'] = (indices, ('batch', 'vehicle', 'trip'))
 
         indices = []
         for j in range(self.params['num_nodes']):
@@ -129,11 +145,14 @@ class PuLPModel:
             upBound = 1,
             cat = pulp.LpInteger
         )
+        self.id['CustomerVehicleTripMapping'] = (indices, ('customer', 'vehicle', 'trip'))
 
         indices = []
         for i in range(self.params['num_nodes']):
             for j in range(self.params['num_nodes']):
-                indices.append((i,j))
+                for v in range(self.params['num_vehicles']):
+                    for h in range(self.params['num_trips']):
+                        indices.append((i, j, v, h))
         self.y = pulp.LpVariable.dicts(
             'CustomerVehicleTripSequence',
             indices,
@@ -141,6 +160,7 @@ class PuLPModel:
             upBound = 1,
             cat = pulp.LpInteger
         )
+        self.id['CustomerVehicleTripSequence'] = (indices, ('customer', 'customer', 'vehicle', 'trip'))
 
         indices = [(v,) for v in range(self.params['num_vehicles'])]
         self.w = pulp.LpVariable.dicts(
@@ -150,6 +170,7 @@ class PuLPModel:
             upBound = 1,
             cat = pulp.LpInteger
         )
+        self.id['ActiveVehicleMapping'] = (indices, ('vehicle'))
 
         print('Building Model.')
         self.model = pulp.LpProblem("IntegratedProductionDeliveryModel", 
@@ -163,7 +184,9 @@ class PuLPModel:
         indices_y = []
         for i in range(1, self.params['num_nodes'] - 1):
             for j in range(1, self.params['num_nodes'] - 1):
-                indices_y.append((i,j))
+                for v in range(self.params['num_vehicles']):
+                    for h in range(self.params['num_trips']):
+                        indices_y.append((i,j,v,h))
         indices_t = []
         for j in range(1, self.params['num_nodes'] - 1):
             for v in range(self.params['num_vehicles']):
@@ -179,8 +202,8 @@ class PuLPModel:
                 for p, q in indices_x
         ] + [
             self.params['travel_cost'] * \
-                self.params['travel_time'][i][j] * self.y[(i, j)] \
-                for i, j in indices_y
+                self.params['travel_time'][i][j] * self.y[(i, j, v, h)] \
+                for i, j, v, h in indices_y
         ] + [
             self.params['vehicle_cost'][v] * self.w[(v,)] \
                 for v in range(self.params['num_vehicles'])
@@ -273,8 +296,8 @@ class PuLPModel:
                     for h in range(self.params['num_trips']):
                         if i == j:
                             continue
-                        self.model += self.y[(0,i)] + \
-                            self.y[(0,j)] + \
+                        self.model += self.y[(0,i,v,h)] + \
+                            self.y[(0,j,v,h)] + \
                             self.u[(i,v,h)] + \
                             self.u[(j,v,h)] <= 3, \
                             'TripStartConstraint({i},{j},{v},{h})'.format(
@@ -284,8 +307,8 @@ class PuLPModel:
                                 h=h,
                             )
 
-                        self.model+=self.y[(i,self.params['num_nodes']-1)]+\
-                            self.y[(j,self.params['num_nodes']-1)] + \
+                        self.model+=self.y[(i,self.params['num_nodes']-1,v,h)]+\
+                            self.y[(j,self.params['num_nodes']-1,v,h)] + \
                             self.u[(i,v,h)] + \
                             self.u[(j,v,h)] <= 3, \
                             'TripEndConstraint({i},{j},{v},{h})'.format(
@@ -297,52 +320,32 @@ class PuLPModel:
 
     def constraint5(self):
         for j in range(1, self.params['num_nodes'] - 1):
-            self.model += pulp.lpSum([
-                self.y[(i,j)] \
-                    for i in range(self.params['num_nodes']) \
-                    if i != j
-            ]) == 1, \
-                'TripMiddleContraint3({j},)'.format(
-                    j=j,
-                )
+            for v in range(self.params['num_vehciles']):
+                for h in range(self.params['num_trips']):
+                    self.model += self.u[(j,v,h)] - pulp.lpSum([
+                        self.y[(i,j,v,h)] for i in range(
+                            self.params['num_customers'] + 1
+                        ) if i != j
+                    ]) == 0, \
+                        'TripMiddleContraint1({j},)'.format(
+                            j=j,
+                        )
 
-            self.model += self.y[(j,j)] == 0, \
-                'TripMiddleContraint4({j},)'.format(
-                    j=j,
-                )
-
-            self.model += pulp.lpSum([
-                self.u[(j,v,h)] \
-                    for v in range(self.params['num_vehicles']) \
-                    for h in range(self.params['num_vehicles'])
-            ]) - pulp.lpSum([
-                self.y[(i,j)] for i in range(
-                    self.params['num_customers'] + 1
-                ) if i != j
-            ]) == 0, \
-                'TripMiddleContraint1({j},)'.format(
-                    j=j,
-                )
-
-            self.model += pulp.lpSum([
-                self.u[(j,v,h)] \
-                    for v in range(self.params['num_vehicles']) \
-                    for h in range(self.params['num_vehicles'])
-            ]) - pulp.lpSum([
-                self.y[(i,j)] for i in range(
-                    1, self.params['num_nodes']
-                ) if i != j
-            ]) == 0, \
-                'TripMiddleContraint2({j},)'.format(
-                    j=j,
-                )
+                    self.model += self.u[(j,v,h)] - pulp.lpSum([
+                        self.y[(i,j,v,h)] for i in range(
+                            1, self.params['num_nodes']
+                        ) if i != j
+                    ]) == 0, \
+                        'TripMiddleContraint2({j},)'.format(
+                            j=j,
+                        )
 
     def constraint6(self):
         for i in range(1, self.params['num_nodes'] - 1):
             for j in range(1, self.params['num_nodes'] - 1):
                 for v in range(self.params['num_vehicles']):
                     for h in range(self.params['num_trips']):
-                        self.model += self.u[(i,v,h)] - self.y[(i,j)] - \
+                        self.model += self.u[(i,v,h)] - self.y[(i,j,v,h)] - \
                             self.u[(j,v,h)] >= -1, \
                             'TripMiddleConstraint3({i},{j},{v},{h})'.format(
                                 i=i,
@@ -351,7 +354,7 @@ class PuLPModel:
                                 h=h
                                 )
 
-                        self.model += self.u[(j,v,h)] - self.y[(i,j)] - \
+                        self.model += self.u[(j,v,h)] - self.y[(i,j,v,h)] - \
                             self.u[(i,v,h)] >= -1, \
                             'TripMiddleConstraint4({i},{j},{v},{h})'.format(
                                 i=i,
@@ -509,12 +512,13 @@ class PuLPModel:
                     if f_!= f
             ]) - self.d[(f,)] == 0, \
                 'BatchProductionSequenceConstraint2({f},)'.format(f=f)
-            """
+
             for f_ in range(self.params['num_batches']):
                 self.model += self.g[(f,f_)] + self.g[(f,f_)] <= 1, \
                     'BatchProductionSequenceConstraint3({f},{f_})'.format(
                         f=f, f_=f_
                     )
+            """
             self.model += pulp.lpSum([
                 self.params['setup_time'][p][q] * self.x[(p,q)] \
                     for p in range(self.params['num_products']) \
@@ -563,7 +567,7 @@ class PuLPModel:
                         self.model += self.a[(j,v,h)] - self.a[(i,v,h)] - \
                                 self.params['service_time'][i] - \
                                 self.params['travel_time'][i][j] + \
-                                self.params['M'] * (1 - self.y[(i,j)])>=0, \
+                                self.params['M'] * (1 - self.y[(i,j,v,h)])>=0, \
                                     'ArrivalTimeConstraint1\
                                     ({j},{v},{h},{i})'.format(j=j,v=v,h=h,i=i)
 
@@ -573,7 +577,7 @@ class PuLPModel:
                                 self.params['M'] * (
                                     2 - \
                                     self.u[(j,v,h)] - \
-                                    self.y[(i,j)]
+                                    self.y[(i,j,v,h)]
                                 ) >= 0, \
                                     'ArrivalTimeConstraint2\
                                     ({j},{v},{h},{i})'.format(j=j,v=v,h=h,i=i)
@@ -642,4 +646,53 @@ class PuLPModel:
             'objective' : pulp.value(self.model.objective)
         })
         return solution
+
+    def get_excel(self, dir_path):
+        solution = self.get_solution()
+        names = self.id.keys()
+        sol = {}
+        for name in names:
+            out = []
+            indices, index_names = self.id[name]
+            workbook = xlsxwriter.Workbook(os.path.join(dir_path, name+'.xlsx')
+            shape = tuple([index + 1 for index in indices[-1]])
+            lst = np.zeros(shape = shape)
+            for index in indices:
+                n = name + '_('
+                for i, num in enumerate(index):
+                    if i == 0 :
+                        n += str(num) + ','
+                    elif i == len(index) - 1:
+                        n += '_' + str(num)
+                    else:
+                        n += '_' + str(num) + ','
+                n += ')'
+                lst[index] = solution[n]
+            if len(shape == 2):
+                worksheet = workbook.add_worksheet()
+                for index in indices:
+                    worksheet.write(index[0], index[1], lst[index[0]][index[1]])
+            elif len(shape) == 3:
+                shape = lst.shape
+                last = shape[-1]
+                for i in range(last):
+                    worksheet = workbook.add_worksheet(index_names[-1]+str(i+1))
+                    for j in range(shape[0]):
+                        for k in range(shape[1]):
+                            worksheet.write(j, k, lst[j][k][i])
+
+            elif len(shape) == 4:
+                shape = lst.shape
+                last = shape[-1]
+                last2 = shape[-2]
+                for i in range(last):
+                    for j in range(last2):
+                        worksheet = workbook.add_worksheet(
+                            index_names[-1]+str(i+1)+ index_names[-2]+str(j+1))
+                        )
+                        for k in range(shape[0]):
+                            for l in range(shape[1]):
+                                worksheet.write(k, l, lst[k][l][j][i])
+            else:
+                shape = lst.shape
 

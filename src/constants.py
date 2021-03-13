@@ -4,11 +4,11 @@ import os
 import numpy as np
 
 
-TRAVEL_TIME = 'travel_time_mid.csv'
+TRAVEL_TIME = 'travel_time.csv'
 VEHICLES = 'vehicles.csv'
 VEHICLE_TYPE = 'vehicle_type.csv'
-META = 'meta_mid.csv'
-LOWER_TIME_LIMIT = 'lower_time_limit_mid.csv'
+META = 'meta.csv'
+LOWER_TIME_LIMIT = 'lower_time_limit.csv'
 
 def get_params(data_type):
     data_path = 'data'
