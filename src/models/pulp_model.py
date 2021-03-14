@@ -5,6 +5,7 @@ from tqdm import tqdm
 import pandas as pd
 import os
 import xlsxwriter
+import json
 
 class PuLPModel:
     def __init__(self, params):
@@ -637,7 +638,7 @@ class PuLPModel:
             self.model.solve(solver)
             print("Status:", pulp.LpStatus[self.model.status])
 
-    def get_solution(self):
+    def get_solution(self, dir_path):
         solution = {
             v.name : v.varValue \
                 for v in self.model.variables()
@@ -645,16 +646,22 @@ class PuLPModel:
         solution.update({
             'objective' : pulp.value(self.model.objective)
         })
+        jsn = open(os.path.join(dir_path, 'solution.json'), 'w')
+        json.dump(solution, jsn)
+        jsn.close()
         return solution
 
-    def get_excel(self, dir_path):
-        solution = self.get_solution()
+    def get_solution_as_excel(self, dir_path):
+        solution = self.get_solution(dir_path)
         names = self.id.keys()
         sol = {}
+        jsn = open(os.path.join(dir_path, 'ref.json'), 'w')
+        json.dump(self.id, jsn)
+        jsn.close()
         for name in names:
             out = []
             indices, index_names = self.id[name]
-            workbook = xlsxwriter.Workbook(os.path.join(dir_path, name+'.xlsx')
+            workbook = xlsxwriter.Workbook(os.path.join(dir_path, name+'.xlsx'))
             shape = tuple([index + 1 for index in indices[-1]])
             lst = np.zeros(shape = shape)
             for index in indices:
@@ -667,8 +674,11 @@ class PuLPModel:
                     else:
                         n += '_' + str(num) + ','
                 n += ')'
-                lst[index] = solution[n]
-            if len(shape == 2):
+                try:
+                    lst[index] = solution[n]
+                except KeyError:
+                    lst[index] = 0.0
+            if len(shape) == 2:
                 worksheet = workbook.add_worksheet()
                 for index in indices:
                     worksheet.write(index[0], index[1], lst[index[0]][index[1]])
@@ -688,11 +698,11 @@ class PuLPModel:
                 for i in range(last):
                     for j in range(last2):
                         worksheet = workbook.add_worksheet(
-                            index_names[-1]+str(i+1)+ index_names[-2]+str(j+1))
+                            index_names[-1]+str(i+1)+ index_names[-2]+str(j+1)
                         )
                         for k in range(shape[0]):
                             for l in range(shape[1]):
                                 worksheet.write(k, l, lst[k][l][j][i])
             else:
                 shape = lst.shape
-
+            workbook.close()
