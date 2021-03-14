@@ -566,22 +566,22 @@ class PuLPModel:
                 for h in range(self.params['num_trips']):
                     for i in range(self.params['num_nodes'] - 1):
                         self.model += self.a[(j,v,h)] - self.a[(i,v,h)] - \
-                                self.params['service_time'][i] - \
-                                self.params['travel_time'][i][j] + \
-                                self.params['M'] * (1 - self.y[(i,j,v,h)])>=0, \
-                                    'ArrivalTimeConstraint1\
-                                    ({j},{v},{h},{i})'.format(j=j,v=v,h=h,i=i)
+                            self.params['service_time'][i] - \
+                            self.params['travel_time'][i][j] + \
+                            self.params['M'] * (1 - self.y[(i,j,v,h)])>=0, \
+                                'ArrivalTimeConstraint1\
+                                ({j},{v},{h},{i})'.format(j=j,v=v,h=h,i=i)
 
                         self.model += self.a[(j,v,h)] - self.st[(v,h)] - \
-                                self.params['service_time'][0] - \
-                                self.params['travel_time'][0][j] + \
-                                self.params['M'] * (
-                                    2 - \
-                                    self.u[(j,v,h)] - \
-                                    self.y[(i,j,v,h)]
-                                ) >= 0, \
-                                    'ArrivalTimeConstraint2\
-                                    ({j},{v},{h},{i})'.format(j=j,v=v,h=h,i=i)
+                            self.params['service_time'][0] - \
+                            self.params['travel_time'][0][j] + \
+                            self.params['M'] * (
+                                2 - \
+                                self.u[(j,v,h)] - \
+                                self.y[(i,j,v,h)]
+                            ) >= 0, \
+                                'ArrivalTimeConstraint2\
+                                ({j},{v},{h},{i})'.format(j=j,v=v,h=h,i=i)
 
     def constraint20(self):
         for v in range(self.params['num_vehicles']):
