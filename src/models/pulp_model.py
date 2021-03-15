@@ -194,13 +194,9 @@ class PuLPModel:
                 for h in range(self.params['num_trips']):
                     indices_t.append((j,v,h))
         self.model += pulp.lpSum([
-            self.params['processing_cost'] * np.sum(
-                self.params['process_time'] * self.params['demand']
-            )
-        ] + [
             self.params['setup_cost'] * \
                 self.params['setup_time'][p][q] * self.x[(p,q)] \
-                for p, q in indices_x
+                for p, q in indices_x if p != q
         ] + [
             self.params['travel_cost'] * \
                 self.params['travel_time'][i][j] * self.y[(i, j, v, h)] \
@@ -512,8 +508,7 @@ class PuLPModel:
                     for f_ in range(self.params['num_batches']) \
                     if f_!= f
             ]) - self.d[(f,)] == 0, \
-                'BatchProductionSequenceConstraint2({f},)'.format(f=f)
-
+                 'BatchProductionSequenceConstraint2({f},)'.format(f=f)
             for f_ in range(self.params['num_batches']):
                 self.model += self.g[(f,f_)] + self.g[(f,f_)] <= 1, \
                     'BatchProductionSequenceConstraint3({f},{f_})'.format(
@@ -637,6 +632,9 @@ class PuLPModel:
         else:
             self.model.solve(solver)
             print("Status:", pulp.LpStatus[self.model.status])
+
+    def get_LP(self, filename):
+        self.model.writeLP(filename)
 
     def get_solution(self, dir_path):
         solution = {
