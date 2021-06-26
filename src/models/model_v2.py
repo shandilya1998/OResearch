@@ -37,8 +37,8 @@ class MIPModel:
         )
         print('-----------------------')
         self.A = np.zeros((self.num_constraints, self.num_variables))
-        self.b = np.zeros((self.num_constraints, ))
-        self.c = np.zeros((self.num_variables, ))
+        self.b = np.zeros((self.num_constraints ))#apparently there was an extra comma here and in the next line
+        self.c = np.zeros((self.num_variables ))
         self._create_variable_indices()
 
         start = 0
