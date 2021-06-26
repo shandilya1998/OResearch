@@ -16,9 +16,9 @@ class MIPModel:
         self.params = params
 
     def build(self):
-        self.num_variables = \
-            self.parmas['num_products'] + 1 + \
-            self.parmas['num_vehicles'] * self.params['num_trips'] + \
+        self.num_variables = \#seems like a typo . params instead of parmas
+            self.params['num_products'] + 1 + \
+            self.params['num_vehicles'] * self.params['num_trips'] + \
             2 * self.params['num_customers'] + \
             self.params['num_products'] * self.params['num_products'] + \
             self.params['num_customers'] * self.params['num_vehicles'] * \
