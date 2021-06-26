@@ -119,6 +119,7 @@ def get_params(data_type):
         'M': data_type(1e4),
         'large_int' : data_type(1e5),
         'pulp_solver' : 'GUROBI',
-        'process_cost' : np.random.random((num_products,))
+        'process_cost' : np.random.random((num_products,)),
+        'out_path' : 'assets/generated/model2'
     }
     return params

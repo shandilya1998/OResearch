@@ -6,6 +6,7 @@ import pandas as pd
 import os
 import xlsxwriter
 import json
+import itertools
 
 class PuLPModel:
     def __init__(self, params):
@@ -18,32 +19,51 @@ class PuLPModel:
 
     def build(self):
         print('Building Variables.')
+        self.indices = {}
+        self.id = {}
         self.f = np.array(
             [pulp.LpVariable(
                 'f{},'.format(p), lowBound = 0
             ) for p in range(self.params['num_products'])]
         )
+        self.id['f'] = 'ProductProductionFinishTime'
+        self.indices['f']  = (self.params['num_products'],)
+
         self.F = pulp.LpVariable('F', lowBound = 0)
+        self.id['F'] = 'ProductionCompletionTime'
+        self.indices['F'] = ()
         self.k = np.array([
             [
                 pulp.LpVariable('k{},{}'.format(i,j)) \
                     for j in range(self.params['num_trips'])
             ] for i in range(self.params['num_vehicles'])
         ])
+        self.id['k'] = 'VehicleTripDeliveryStartTime'
+        self.indices['k'] = (self.params['num_vehicles'], self.params['num_trips'])
+
         self.a = np.array([
             pulp.LpVariable('a{},'.format(i), lowBound = 0) \
                 for i in range(self.params['num_customers'])
         ])
+        self.id['a'] = 'ArrivalAtCustomerTime'
+        self.indices['a'] = (self.params['num_customers'],)
+
         self.l = np.array([
             pulp.LpVariable('l{},'.format(i), lowBound = 0) \
                 for i in range(self.params['num_customers'])
         ])
+        self.id['l'] = 'TardinessAtCustomer'
+        self.indices['l'] = (self.params['num_customers'],)
+
         self.x = np.array([
             [
                 pulp.LpVariable('x{},{}'.format(p,q), cat = 'Binary') \
                     for q in range(self.params['num_products'])
             ] for p in range(self.params['num_products'])
         ])
+        self.id['x'] = 'ProductProductionSequence'
+        self.indices['x'] = (self.params['num_products'], self.params['num_products'])
+
         self.y = np.array([
             [
                 [
@@ -52,6 +72,9 @@ class PuLPModel:
                 ] for v in range(self.params['num_vehicles'])
             ] for i in range(self.params['num_nodes'])
         ])
+        self.id['y'] = 'CustomerVehicleTripMap'
+        self.indices['y'] = (self.params['num_nodes'], self.params['num_vehicles'], self.params['num_trips'])
+
         self.z = np.array([
             [
                 [
@@ -62,10 +85,15 @@ class PuLPModel:
                 ] for j in range(self.params['num_customers'] + 1)
             ] for i in range(self.params['num_customers'] + 1)
         ])
+        self.id['z'] = 'DeliverySequence'
+        self.indices['z'] = (self.params['num_customers'], self.params['num_customers'], self.params['num_vehicles'], self.params['num_trips'])
+
         self.w = np.array([
             pulp.LpVariable('x{},'.format(i)) \
                 for i in range(self.params['num_vehicles'])
         ])
+        self.id['w'] = 'VehicleUsage'
+        self.indices['w'] = (self.params['num_vehicles'], )
 
         print('Building Objective.')
         self.mc_1 = pulp.LpAffineExpression(np.concatenate([
@@ -248,6 +276,7 @@ class PuLPModel:
         else:
             self.model.solve(solver)
             print("Status:", pulp.LpStatus[self.model.status])
+        self.get_solution_as_excel(self.params['out_path'])
 
     def get_LP(self, filename):
         self.model.writeLP(filename)
@@ -265,30 +294,27 @@ class PuLPModel:
         jsn.close()
         return solution
 
+    def _get_indices(self, limits):
+        limits = [list(range(l)) for l in limits]
+        return list(itertools.product(*limits))
+
     def get_solution_as_excel(self, dir_path):
-        raise NotImplementedError
         solution = self.get_solution(dir_path)
-        names = self.id.keys()
-        sol = {}
         jsn = open(os.path.join(dir_path, 'ref.json'), 'w')
         json.dump(self.id, jsn)
         jsn.close()
-        for name in names:
-            out = []
-            indices, index_names = self.id[name]
+        for var, name in self.id.items():
             workbook = xlsxwriter.Workbook(os.path.join(dir_path, name+'.xlsx'))
+            indices = self._get_indices(self.indices[var])
             shape = tuple([index + 1 for index in indices[-1]])
             lst = np.zeros(shape = shape)
             for index in indices:
-                n = name + '_('
-                for i, num in enumerate(index):
-                    if i == 0 :
-                        n += str(num) + ','
-                    elif i == len(index) - 1:
-                        n += '_' + str(num)
+                n = var
+                for i, ax in enumerate(index):
+                    if i < len(index) - 1:
+                        n += str(ax) + ','
                     else:
-                        n += '_' + str(num) + ','
-                n += ')'
+                        n += str(ax)
                 try:
                     lst[index] = solution[n]
                 except KeyError:
@@ -301,7 +327,7 @@ class PuLPModel:
                 shape = lst.shape
                 last = shape[-1]
                 for i in range(last):
-                    worksheet = workbook.add_worksheet(index_names[-1]+str(i+1))
+                    worksheet = workbook.add_worksheet(var+str(i+1))
                     for j in range(shape[0]):
                         for k in range(shape[1]):
                             worksheet.write(j, k, lst[j][k][i])
@@ -313,7 +339,7 @@ class PuLPModel:
                 for i in range(last):
                     for j in range(last2):
                         worksheet = workbook.add_worksheet(
-                            index_names[-1]+str(i+1)+ index_names[-2]+str(j+1)
+                            var+str(i+1)+','+str(j+1)
                         )
                         for k in range(shape[0]):
                             for l in range(shape[1]):
