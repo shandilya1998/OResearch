@@ -12,16 +12,16 @@ class PuLPModel:
         self.params = params
         if os.path.exists('temp'):
             os.rmdir('temp')
-        os.mkdir('temp')
         self.tmp_file_dir = 'temp'
         pulp.LpSolverDefault.tmpDir = self.tmp_file_dir
+        self.model = pulp.LpProblem("Perishable Item Delivery Model", pulp.LpMinimize)
 
     def build(self):
         print('Building Variables.')
         self.f = np.array(
             [pulp.LpVariable(
-                'f{},'.format(i), lowBound = 0
-            ) for j in range(self.params['num_products'])]
+                'f{},'.format(p), lowBound = 0
+            ) for p in range(self.params['num_products'])]
         )
         self.F = pulp.LpVariable('F', lowBound = 0)
         self.k = np.array([
@@ -32,7 +32,7 @@ class PuLPModel:
         ])
         self.a = np.array([
             pulp.LpVariable('a{},'.format(i), lowBound = 0) \
-                for i in range(self.parmas['num_customers'])
+                for i in range(self.params['num_customers'])
         ])
         self.l = np.array([
             pulp.LpVariable('l{},'.format(i), lowBound = 0) \
@@ -58,9 +58,9 @@ class PuLPModel:
                     [
                         pulp.LpVariable('z{},{},{},{}'.format(i,j,v,h)) \
                             for h in range(self.params['num_trips'])
-                    ]
-                ]
-            ]
+                    ] for v in range(self.params['num_vehicles'])
+                ] for j in range(self.params['num_customers'] + 1)
+            ] for i in range(self.params['num_customers'] + 1)
         ])
         self.w = np.array([
             pulp.LpVariable('x{},'.format(i)) \
@@ -70,23 +70,23 @@ class PuLPModel:
         print('Building Objective.')
         self.mc_1 = pulp.LpAffineExpression(np.concatenate([
             np.array(list(zip(self.x.flatten(), self.params['setup_time'].flatten()))),
-        ])
+        ]))
         self.mc_2 = self.params['process_cost'].flatten() * \
                 self.params['process_time'].flatten() * \
-                self.params['demand'].flatten()
+                np.sum(self.params['demand'], 0).flatten()
 
         self.dc = pulp.LpAffineExpression(np.concatenate([
             np.array(list(zip(self.w, self.params['vehicle_cost']))),
-            np.array(list(zip(self.z.flatten(), np.expand_dims(
-                np.repeat(np.expand_dims(
-                    self.travel_time, -1
-                ), self.params['num_trips']), -1
-            ), self.params['num_vehicles'])))
-        ])
+            np.array(list(zip(self.z.flatten(), np.repeat(
+                np.expand_dims(
+                    np.repeat(np.expand_dims(
+                        self.params['travel_time'], -1
+                    ), self.params['num_vehicles']), -1
+                ), self.params['num_trips']
+            ).flatten())))
+        ], 0))
 
-        self.pc = pulp.LpAffineExpression(np.array(list(zip(
-            self.l, self.params['late_delivery_penalty']
-        ))))
+        self.pc = self.l * self.params['late_delivery_penalty']
         self.model += pulp.lpSum([self.dc, self.pc, self.mc_1, self.mc_2])
 
         print('Building Constraint.')
@@ -105,14 +105,6 @@ class PuLPModel:
             self.constraint12,
             self.constraint13,
             self.constraint14,
-            self.constraint15,
-            self.constraint16,
-            self.constraint17,
-            self.constraint18,
-            self.constraint19,
-            self.constraint20,
-            self.constraint21,
-            self.constraint22,
         ]
 
         for constraint in tqdm(lst_constraints):
@@ -130,12 +122,12 @@ class PuLPModel:
     def constraint2(self):
         for p in range(self.params['num_products']):
             self.model += self.f[p] - pulp.lpSum(
-                    self.params['process_time'] * lp.lpSum(self.params['demand'][:, p])
+                    self.params['process_time'] * pulp.lpSum(self.params['demand'][:, p])
             ) == 0, 'ProductionFinisTimeConstraint{},'.format(p)
             for q in range(self.params['num_products']):
                 if q != p:
                     self.model += self.F + self.f[p] - self.f[q] - \
-                        self.params['M'] * self.x[p][q] - self.setup_time[p][q] - \
+                        self.params['M'] * self.x[p][q] - self.params['setup_time'][p][q] - \
                         self.f[p] - self.params['M'], 'AllProductionCompletionTimeConstraint{},{},'.format(p,q)
 
     def constraint3(self):
@@ -147,11 +139,11 @@ class PuLPModel:
         for i in range(1, self.params['num_nodes'] - 1):
             for v in range(self.params['num_vehicles']):
                 for h in range(self.params['num_trips']):
-                    self.model += self.y[0,v,h)] - \
+                    self.model += self.y[0,v,h] - \
                         self.y[(i,v,h)] >= 0, \
                         'TourDefinitionConstraint1,{},{},{},'.format(i,v,h)
 
-                    self.model += self.y[self.params['num_trips'] - 1,v,h)] - \
+                    self.model += self.y[self.params['num_trips'] - 1,v,h] - \
                         self.y[(i,v,h)] >= 0, \
                         'TourDefinitionConstraint2,{},{},{},'.format(i,v,h)
 
@@ -178,7 +170,7 @@ class PuLPModel:
                     for h in range(self.params['num_trips']):
                         if i != j:
                             self.model += self.z[0,i+1,v,h] + self.z[0,j+1,v,h] + \
-                                self.y[i+1,v,h] + self.y[j+1,v,h] < 3, \
+                                self.y[i+1,v,h] + self.y[j+1,v,h] <= 3, \
                                 'StartEndRoutingConstraint{},{},{},{},'.format(i,j,v,h)
 
         for j in range(self.params['num_customers']):
@@ -194,7 +186,7 @@ class PuLPModel:
     def constraint8(self):
         for v in range(self.params['num_vehicles']):
             for h in range(self.params['num_trips']):
-                self.model += self.u[(0,v,h)] - self.w[(v,)] >= 0, \
+                self.model += self.y[(0,v,h)] - self.w[(v,)] >= 0, \
                     'VehicleTripAssignmentConstraint{},{}'.format(v,h)
 
     def constraint9(self):
@@ -207,11 +199,11 @@ class PuLPModel:
     def constraint10(self):
         for j in range(self.params['num_customers']):
             for v in range(self.params['num_vehicles']):
-                for h in range(self.params['num_trips']):
+                for h in range(self.params['num_trips'] - 1):
                     self.model += self.k[v][h + 1] - self.a[j] - \
-                        self.params['service_time'][j + 1] - \
+                        self.params['service_time'][j] - \
                         self.params['travel_time'][j, self.params['num_nodes'] - 1] + \
-                        self.paraas['M'] * (1 - self.y[j + 1,  v, h]) >= 0, \
+                        self.params['M'] * (1 - self.y[j, v, h]) >= 0, \
                         'StartTimeConstraint2,{},{},{},'.format(j,v,h)
 
     def constraint11(self):
@@ -237,13 +229,13 @@ class PuLPModel:
 
     def constraint13(self):
         for i in range(self.params['num_customers']):
-            self.model += self.a[i] - self.params['time_window'][i + 1][0] >= 0, \
+            self.model += self.a[i] - self.params['time_windows'][i + 1][0] >= 0, \
                 'ArrivalTimeConstraint3,{}'.format(i)
 
     def constraint14(self):
         for i in range(self.params['num_customers']):
             self.model += self.l[i] - self.a[i] + \
-                self.params['time_window'][i+1][1] >= 0, \
+                self.params['time_windows'][i+1][1] >= 0, \
                 'TardinessConstraint{},'.format(i)
 
     def solve(self):

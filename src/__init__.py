@@ -6,7 +6,7 @@ def run(
 ):
     if solver == 'MILP' or solver == 'LP':
         print('Running model')
-        solver = models.Model(
+        solver = models.MIPModel(
             params,
             solver
         )

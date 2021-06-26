@@ -669,6 +669,89 @@ class MIPModel:
         u = (idx - z) / zmax
         return x, y, z, u
 
+     def solve(self):
+        print('Solving Problem.')
+        solver = self.params['pulp_solver']
+        if solver == 'GUROBI':
+            solver = pulp.GUROBI_CMD()
+            self.model.solve(solver)
+            print("Status:", pulp.LpStatus[self.model.status])
+        else:
+            self.model.solve(solver)
+            print("Status:", pulp.LpStatus[self.model.status])
+
+    def get_LP(self, filename):
+        self.model.writeLP(filename)
+
+    def get_solution(self, dir_path):
+        solution = {
+            v.name : v.varValue \
+                for v in self.model.variables()
+        }
+        solution.update({
+            'objective' : pulp.value(self.model.objective)
+        })
+        jsn = open(os.path.join(dir_path, 'solution.json'), 'w')
+        json.dump(solution, jsn)
+        jsn.close()
+        return solution
+
+    def get_solution_as_excel(self, dir_path):
+        solution = self.get_solution(dir_path)
+        names = self.id.keys()
+        sol = {}
+        jsn = open(os.path.join(dir_path, 'ref.json'), 'w')
+        json.dump(self.id, jsn)
+        jsn.close()
+        for name in names:
+            out = []
+            indices, index_names = self.id[name]
+            workbook = xlsxwriter.Workbook(os.path.join(dir_path, name+'.xlsx'))
+            shape = tuple([index + 1 for index in indices[-1]])
+            lst = np.zeros(shape = shape)
+            for index in indices:
+                n = name + '_('
+                for i, num in enumerate(index):
+                    if i == 0 :
+                        n += str(num) + ','
+                    elif i == len(index) - 1:
+                        n += '_' + str(num)
+                    else:
+                        n += '_' + str(num) + ','
+                n += ')'
+                try:
+                    lst[index] = solution[n]
+                except KeyError:
+                    lst[index] = 0.0
+            if len(shape) == 2:
+                worksheet = workbook.add_worksheet()
+                for index in indices:
+                    worksheet.write(index[0], index[1], lst[index[0]][index[1]])
+            elif len(shape) == 3:
+                shape = lst.shape
+                last = shape[-1]
+                for i in range(last):
+                    worksheet = workbook.add_worksheet(index_names[-1]+str(i+1))
+                    for j in range(shape[0]):
+                        for k in range(shape[1]):
+                            worksheet.write(j, k, lst[j][k][i])
+
+            elif len(shape) == 4:
+                shape = lst.shape
+                last = shape[-1]
+                last2 = shape[-2]
+                for i in range(last):
+                    for j in range(last2):
+                        worksheet = workbook.add_worksheet(
+                            index_names[-1]+str(i+1)+ index_names[-2]+str(j+1)
+                        )
+                        for k in range(shape[0]):
+                            for l in range(shape[1]):
+                                worksheet.write(k, l, lst[k][l][j][i])
+            else:
+                shape = lst.shape
+            workbook.close()
+
     def _create_variable_indices(self):
         self.indices = {}
 
