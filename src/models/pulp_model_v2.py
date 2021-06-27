@@ -34,9 +34,9 @@ class PuLPModel:
         self.indices['F'] = ()
         self.k = np.array([
             [
-                pulp.LpVariable('k{},{}'.format(i,j)) \
-                    for j in range(self.params['num_trips'])
-            ] for i in range(self.params['num_vehicles'])
+                pulp.LpVariable('k{},{}'.format(v,h)) \
+                    for h in range(self.params['num_trips'])
+            ] for v in range(self.params['num_vehicles'])
         ])
         self.id['k'] = 'VehicleTripDeliveryStartTime'
         self.indices['k'] = (self.params['num_vehicles'], self.params['num_trips'])
@@ -99,9 +99,9 @@ class PuLPModel:
         self.mc_1 = pulp.LpAffineExpression(np.concatenate([
             np.array(list(zip(self.x.flatten(), self.params['setup_time'].flatten()))),
         ]))
-        self.mc_2 = self.params['process_cost'].flatten() * \
+        self.mc_2 = np.sum(self.params['process_cost'].flatten() * \
                 self.params['process_time'].flatten() * \
-                np.sum(self.params['demand'], 0).flatten()
+                np.sum(self.params['demand'], 0).flatten())
 
         self.dc = pulp.LpAffineExpression(np.concatenate([
             np.array(list(zip(self.w, self.params['vehicle_cost']))),
@@ -114,7 +114,7 @@ class PuLPModel:
             ).flatten())))
         ], 0))
 
-        self.pc = self.l * self.params['late_delivery_penalty']
+        self.pc = np.sum(self.l * self.params['late_delivery_penalty'])
         self.model += pulp.lpSum([self.dc, self.pc, self.mc_1, self.mc_2])
 
         print('Building Constraint.')
@@ -315,10 +315,19 @@ class PuLPModel:
                         n += str(ax) + ','
                     else:
                         n += str(ax)
+                if len(index) == 1:
+                    n = var + str(index[0]) + ','
                 try:
                     lst[index] = solution[n]
                 except KeyError:
                     lst[index] = 0.0
+            if len(shape) == 0:
+                worksheet = workbook.add_worksheet()
+                worksheet.write(0, 0, lst)
+            if len(shape) == 1:
+                worksheet = workbook.add_worksheet()
+                for index in indices:
+                    worksheet.write(index[0], 0, lst[index[0]])
             if len(shape) == 2:
                 worksheet = workbook.add_worksheet()
                 for index in indices:
