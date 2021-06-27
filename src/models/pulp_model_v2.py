@@ -34,7 +34,7 @@ class PuLPModel:
         self.indices['F'] = ()
         self.k = np.array([
             [
-                pulp.LpVariable('k{},{}'.format(v,h)) \
+                pulp.LpVariable('k{},{}'.format(v,h), lowBound = 0) \
                     for h in range(self.params['num_trips'])
             ] for v in range(self.params['num_vehicles'])
         ])
@@ -67,7 +67,7 @@ class PuLPModel:
         self.y = np.array([
             [
                 [
-                    pulp.LpVariable('y{},{},{}'.format(i,v,h)) \
+                    pulp.LpVariable('y{},{},{}'.format(i,v,h), cat = 'Binary') \
                         for h in range(self.params['num_trips'])
                 ] for v in range(self.params['num_vehicles'])
             ] for i in range(self.params['num_nodes'])
@@ -79,17 +79,17 @@ class PuLPModel:
             [
                 [
                     [
-                        pulp.LpVariable('z{},{},{},{}'.format(i,j,v,h)) \
+                        pulp.LpVariable('z{},{},{},{}'.format(i,j,v,h), cat = 'Binary') \
                             for h in range(self.params['num_trips'])
                     ] for v in range(self.params['num_vehicles'])
-                ] for j in range(self.params['num_customers'] + 1)
-            ] for i in range(self.params['num_customers'] + 1)
+                ] for j in range(self.params['num_nodes'])
+            ] for i in range(self.params['num_nodes'])
         ])
         self.id['z'] = 'DeliverySequence'
         self.indices['z'] = (self.params['num_customers'], self.params['num_customers'], self.params['num_vehicles'], self.params['num_trips'])
 
         self.w = np.array([
-            pulp.LpVariable('x{},'.format(i)) \
+            pulp.LpVariable('x{},'.format(i), cat = 'Binary') \
                 for i in range(self.params['num_vehicles'])
         ])
         self.id['w'] = 'VehicleUsage'
@@ -150,7 +150,7 @@ class PuLPModel:
     def constraint2(self):
         for p in range(self.params['num_products']):
             self.model += self.f[p] - pulp.lpSum(
-                    self.params['process_time'] * pulp.lpSum(self.params['demand'][:, p])
+                    self.params['process_time'][p] * pulp.lpSum(self.params['demand'][:, p])
             ) == 0, 'ProductionFinisTimeConstraint{},'.format(p)
             for q in range(self.params['num_products']):
                 if q != p:
@@ -171,7 +171,7 @@ class PuLPModel:
                         self.y[(i,v,h)] >= 0, \
                         'TourDefinitionConstraint1,{},{},{},'.format(i,v,h)
 
-                    self.model += self.y[self.params['num_trips'] - 1,v,h] - \
+                    self.model += self.y[self.params['num_nodes'] - 1,v,h] - \
                         self.y[(i,v,h)] >= 0, \
                         'TourDefinitionConstraint2,{},{},{},'.format(i,v,h)
 
@@ -179,15 +179,15 @@ class PuLPModel:
         for v in range(self.params['num_vehicles']):
             for h in range(self.params['num_trips'] - 1):
                 self.model += self.params['M'] * pulp.lpSum(self.y[1:-1,v,h]) - \
-                    pulp.lpSum(self.y[:,v,h+1]), 'SuceedingTourConstraint{},{},'.format(v,h)
+                    pulp.lpSum(self.y[1:-1,v,h+1]) >= 0, 'SuceedingTourConstraint{},{},'.format(v,h)
 
     def constraint6(self):
         for v in range(self.params['num_vehicles']):
             for h in range(self.params['num_trips']):
-                self.model += pulp.lpSum(pulp.lpSum(self.params['demand'] * \
+                self.model += pulp.lpSum(self.params['demand'] * \
                     np.repeat(np.expand_dims(self.y[:, v, h], 1), \
-                        self.params['num_products'], 1))) <= \
-                        self.params['vehicle_capacity'], 'VehicleCapacityConstraint{},{},'.format(
+                        self.params['num_products'], 1)) <= \
+                        self.params['vehicle_capacity'][v], 'VehicleCapacityConstraint{},{},'.format(
                             v,h
                         )
 
@@ -199,16 +199,20 @@ class PuLPModel:
                         if i != j:
                             self.model += self.z[0,i+1,v,h] + self.z[0,j+1,v,h] + \
                                 self.y[i+1,v,h] + self.y[j+1,v,h] <= 3, \
-                                'StartEndRoutingConstraint{},{},{},{},'.format(i,j,v,h)
+                                'StartEndRoutingConstraint0_{},{},{},{},'.format(i,j,v,h)
+
+                            self.model += self.z[i+1,self.params['num_nodes'] - 1,v,h] + self.z[j+1,self.params['num_nodes'] - 1,v,h] + \
+                                self.y[i+1,v,h] + self.y[j+1,v,h] <= 3, \
+                                'StartEndRoutingConstraint1_{},{},{},{},'.format(i,j,v,h)
 
         for j in range(self.params['num_customers']):
             for v in range(self.params['num_vehicles']):
                 for h in range(self.params['num_trips']):
                     self.model += self.y[j+1,v,h] - pulp.lpSum(
-                        self.z[:-1,j+1,v,h]
+                        np.array([self.z[i,j+1,v,h] for i in range(1, self.params['num_nodes']) if i!=j+1])
                     ) == 0, 'MiddleRoutingConstraint1,{},{},{}'.format(j,v,h)
                     self.model += self.y[j+1,v,h] - pulp.lpSum(
-                        self.z[1:,j+1,v,h]
+                        np.array([self.z[i,j+1,v,h] for i in range(self.params['num_nodes'] - 1) if i!=j+1])
                     ) == 0, 'MiddleRoutingConstraint{},{},{}'.format(j,v,h)
 
     def constraint8(self):
@@ -229,9 +233,9 @@ class PuLPModel:
             for v in range(self.params['num_vehicles']):
                 for h in range(self.params['num_trips'] - 1):
                     self.model += self.k[v][h + 1] - self.a[j] - \
-                        self.params['service_time'][j] - \
-                        self.params['travel_time'][j, self.params['num_nodes'] - 1] + \
-                        self.params['M'] * (1 - self.y[j, v, h]) >= 0, \
+                        self.params['service_time'][j + 1] - \
+                        self.params['travel_time'][j + 1, self.params['num_nodes'] - 1] + \
+                        self.params['M'] * (1 - self.y[j + 1, v, h]) >= 0, \
                         'StartTimeConstraint2,{},{},{},'.format(j,v,h)
 
     def constraint11(self):
@@ -239,7 +243,7 @@ class PuLPModel:
             for v in range(self.params['num_vehicles']):
                 for h in range(self.params['num_trips']):
                     self.model += self.a[j] - self.k[v][h] - \
-                        self.params['travel_time'][0][j] + \
+                        self.params['travel_time'][0][j + 1] + \
                         self.params['M'] * (1 - self.y[j + 1][v][h]) >= 0, \
                         'ArrivalTimeConstraint1,{},{},{}'.format(j,v,h)
 
@@ -250,9 +254,9 @@ class PuLPModel:
                     for h in range(self.params['num_trips']):
                         if i != j:
                             self.model += self.a[j] - self.a[i] - \
-                                self.params['service_time'][i] - \
+                                self.params['service_time'][i+1] - \
                                 self.params['travel_time'][i+1][j+1] + \
-                                self.params['M'] * (1 - self.y[i + 1][v][h]) >=0 , \
+                                self.params['M'] * (1 - self.z[i + 1][j + 1][v][h]) >=0 , \
                                 'ArrivalTimeConstraint1,{},{},{},{}'.format(i,j,v,h)
 
     def constraint13(self):
@@ -281,6 +285,17 @@ class PuLPModel:
     def get_LP(self, filename):
         self.model.writeLP(filename)
 
+    def _get_serializable_params(self):
+        params = {}
+        for key in self.params.keys():
+            if isinstance(self.params[key], np.ndarray):
+                params[key] = self.params[key].copy().tolist()
+            elif isinstance(self.params[key], np.int64):
+                params[key] = int(self.params[key])
+            else:
+                params[key] = self.params[key]
+        return params
+
     def get_solution(self, dir_path):
         solution = {
             v.name : v.varValue \
@@ -291,6 +306,9 @@ class PuLPModel:
         })
         jsn = open(os.path.join(dir_path, 'solution.json'), 'w')
         json.dump(solution, jsn)
+        jsn.close()
+        jsn = open(os.path.join(dir_path, 'params.json'), 'w')
+        json.dump(self._get_serializable_params(), jsn)
         jsn.close()
         return solution
 

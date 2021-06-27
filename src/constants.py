@@ -69,20 +69,19 @@ def get_params(data_type):
     max_up = 0
     index = 0
     for i in range(num_nodes):
-        if i == 0 or num_nodes - 1:
+        if i == 0 or i == num_nodes - 1:
             time_windows.append([0, 0])
         else:
             upper =  sum([
-                demand[p][i-1]*process_time[p] for p in range(num_products)
+                demand[i-1][p]*process_time[p] for p in range(num_products)
             ]) + service_time[i]
             time_windows.append([
                 lower[i - 1],
                 lower[i - 1] + 10 + upper
             ])
-            if upper > max_up:
-                max_up = upper
+            if upper + lower[i - 1] + 10 > max_up:
+                max_up = upper + lower[i - 1] + 10
                 index = i
-
     time_windows[0][1] = max_up + travel_time[0][index] + 10
     time_windows[num_nodes - 1][1] = max_up + travel_time[0][index] + 10
     time_windows = np.array(time_windows).astype(data_type)
