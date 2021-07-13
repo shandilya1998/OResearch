@@ -34,7 +34,7 @@ def get_params(data_type):
     print('Number of Customers:')
     print(num_customers)
     print('-----------------------')
-    num_trips = num_customers
+    num_trips = int(num_customers / 2) - 1
     num_batches = num_customers
     num_vehicle_types = len(vehicle_type_cost) # random.randint(0, 8)
     num_vehicles = len(vehicle_type)
@@ -119,6 +119,6 @@ def get_params(data_type):
         'large_int' : data_type(1e5),
         'pulp_solver' : 'GUROBI',
         'process_cost' : np.random.random((num_products,)),
-        'out_path' : 'assets/generated/model2'
+        'out_path' : 'assets/generated/model3'
     }
     return params

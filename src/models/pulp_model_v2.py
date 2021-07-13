@@ -89,7 +89,7 @@ class PuLPModel:
         self.indices['z'] = (self.params['num_customers'], self.params['num_customers'], self.params['num_vehicles'], self.params['num_trips'])
 
         self.w = np.array([
-            pulp.LpVariable('x{},'.format(i), cat = 'Binary') \
+            pulp.LpVariable('w{},'.format(i), cat = 'Binary') \
                 for i in range(self.params['num_vehicles'])
         ])
         self.id['w'] = 'VehicleUsage'
@@ -149,14 +149,10 @@ class PuLPModel:
 
     def constraint2(self):
         for p in range(self.params['num_products']):
-            self.model += self.f[p] - pulp.lpSum(
-                    self.params['process_time'][p] * pulp.lpSum(self.params['demand'][:, p])
-            ) == 0, 'ProductionFinisTimeConstraint{},'.format(p)
-            for q in range(self.params['num_products']):
-                if q != p:
-                    self.model += self.F + self.f[p] - self.f[q] - \
-                        self.params['M'] * self.x[p][q] - self.params['setup_time'][p][q] - \
-                        self.f[p] - self.params['M'], 'AllProductionCompletionTimeConstraint{},{},'.format(p,q)
+            self.model += self.f[p] - self.params['process_time'][p] * \
+                pulp.lpSum(self.params['demand'][:, p]) == 0, \
+                'ProductionFinisTimeConstraint{},'.format(p)
+        self.model += self.F - pulp.lpSum(self.f) == 0, 'AllProductionCompletionTimeConstraint'
 
     def constraint3(self):
         for i in range(self.params['num_customers']):
@@ -168,11 +164,11 @@ class PuLPModel:
             for v in range(self.params['num_vehicles']):
                 for h in range(self.params['num_trips']):
                     self.model += self.y[0,v,h] - \
-                        self.y[(i,v,h)] >= 0, \
+                        self.y[i,v,h] >= 0, \
                         'TourDefinitionConstraint1,{},{},{},'.format(i,v,h)
 
                     self.model += self.y[self.params['num_nodes'] - 1,v,h] - \
-                        self.y[(i,v,h)] >= 0, \
+                        self.y[i,v,h] >= 0, \
                         'TourDefinitionConstraint2,{},{},{},'.format(i,v,h)
 
     def constraint5(self):
@@ -218,7 +214,7 @@ class PuLPModel:
     def constraint8(self):
         for v in range(self.params['num_vehicles']):
             for h in range(self.params['num_trips']):
-                self.model += self.y[(0,v,h)] - self.w[(v,)] >= 0, \
+                self.model += self.y[0,v,h] - self.w[v] >= 0, \
                     'VehicleTripAssignmentConstraint{},{}'.format(v,h)
 
     def constraint9(self):
@@ -361,16 +357,16 @@ class PuLPModel:
 
             elif len(shape) == 4:
                 shape = lst.shape
-                last = shape[-1]
-                last2 = shape[-2]
-                for i in range(last):
-                    for j in range(last2):
+                print("SHAPE")
+                print(shape)
+                for i in range(shape[3]):
+                    for j in range(shape[2]):
                         worksheet = workbook.add_worksheet(
-                            var+str(i+1)+','+str(j+1)
+                            var+str(j+1)+','+str(i+1)
                         )
-                        for k in range(shape[0]):
-                            for l in range(shape[1]):
-                                worksheet.write(k, l, lst[k][l][j][i])
+                        for k in range(shape[1]):
+                            for l in range(shape[0]):
+                                worksheet.write(l, k, lst[l][k][j][i])
             else:
                 shape = lst.shape
             workbook.close()
