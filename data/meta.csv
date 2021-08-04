@@ -1,2 +1,7 @@
-products,customers
-3,8
+metric,quantity
+products,2
+customers,8
+processing cost,5
+hiring cost,10
+travel cost,5
+penalty,10
