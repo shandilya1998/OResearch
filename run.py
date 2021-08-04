@@ -15,7 +15,7 @@ model = 'PULP'
 if model == 'CPSAT':
     params = src.constants.get_params(int)
 elif model == 'MILP' or model == 'PULP':
-    params = src.constants.get_params(int)
+    params = src.constants.get_params_v2(int)
 
 solver = src.run(
     params,

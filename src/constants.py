@@ -36,7 +36,6 @@ def get_params(data_type):
     print('-----------------------')
     num_trips = int(num_customers / 2) - 1
     num_batches = num_customers
-    num_vehicle_types = len(vehicle_type_cost) # random.randint(0, 8)
     num_vehicles = len(vehicle_type)
     demand = np.array([
         [
@@ -135,20 +134,19 @@ def get_params_v2(data_type, read = True):
     vehicle_type = pd.read_csv(os.path.join(data_path, VEHICLE_TYPE))
     vehicle_type = vehicle_type['type'].values.astype(int)
     meta = pd.read_csv(os.path.join(data_path, META))
-    num_products = meta[meta['metric'] == \
-        'peoducts'].reset_index()['metric'][0]
-
-    num_customers = meta[meta['metric'] == \
-        'customers'].reset_index()['metric'][0]
+    num_products = int(meta[meta['metric'] == \
+        'products'].reset_index()['quantity'][0])
+    num_customers = int(meta[meta['metric'] == \
+        'customers'].reset_index()['quantity'][0])
     num_nodes = num_customers + 2
-    processing_cost = meta[meta['metric'] == \
-        'processing cost'].reset_index()['metric'][0]
-    hiring_cost = meta[meta['metric'] == \
-        'hiring cost'].reset_index()['metric'][0]
-    travel_cost = meta[meta['travel cost'] == \
-        'travel cost'].reset_index()['metric'][0]
-    penalty = meta[meta['metric'] == \
-        'penalty'].reset_index()['metric'][0]
+    processing_cost = int(meta[meta['metric'] == \
+        'processing cost'].reset_index()['quantity'][0])
+    hiring_cost = int(meta[meta['metric'] == \
+        'hiring cost'].reset_index()['quantity'][0])
+    travel_cost = int(meta[meta['metric'] == \
+        'travel cost'].reset_index()['quantity'][0])
+    penalty = int(meta[meta['metric'] == \
+        'penalty'].reset_index()['quantity'][0])
     print('-----------------------')
     print('Number of Products:')
     print(num_products)
@@ -159,7 +157,6 @@ def get_params_v2(data_type, read = True):
     print('-----------------------')
     num_trips = int(num_customers / 2) - 1
     num_batches = num_customers
-    num_vehicle_types = len(vehicle_type_cost) # random.randint(0, 8)
     num_vehicles = len(vehicle_type)
     
     demand = np.array([
@@ -184,7 +181,7 @@ def get_params_v2(data_type, read = True):
         ] for q in range(num_products + 1)
     ], dtype = np.int32)
     for p in range(num_products):
-        for q in range(num_prodcuts):
+        for q in range(num_products):
             if p == q:
                 setup_time[p + 1][q] = 0
 
@@ -213,7 +210,7 @@ def get_params_v2(data_type, read = True):
         'vehicle_capacity': np.array(
             [vehicle_type_capacity[t] for t in vehicle_type]
         ),  
-        'service_time': service_time,
+        'service_time': unloading_time,
         'processing_cost': processing_cost,
         'setup_cost': hiring_cost, 
         'travel_cost': travel_cost, 

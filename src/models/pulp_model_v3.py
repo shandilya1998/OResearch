@@ -101,7 +101,8 @@ class PuLPModel:
             np.sum(self.params['demand'], 0).flatten())
 
         self.dc = pulp.LpAffineExpression(np.concatenate([
-            np.array(list(zip(self.w, self.params['vehicle_cost']))),
+            np.array(list(zip(self.w,
+                [self.params['vehicle_cost']]*self.params['num_vehicles']))),
             np.array(list(zip(self.z.flatten(), np.repeat(
                 np.expand_dims(
                     np.repeat(np.expand_dims(
