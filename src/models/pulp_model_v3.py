@@ -94,7 +94,7 @@ class PuLPModel:
 
         print('Building Objective.')
         self.mc_1 = pulp.LpAffineExpression(np.concatenate([
-            np.array(list(zip(self.x.flatten(), self.params['setup_time'].flatten()))),
+            np.array(list(zip(self.x.flatten(), self.params['setup_cost'].flatten()))),
         ]))
         self.mc_2 = self.params['processing_cost'] * \
             np.sum(self.params['process_time'].flatten() * \

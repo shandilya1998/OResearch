@@ -195,6 +195,9 @@ def get_params_v2(data_type, read = True):
     time_windows = pd.read_csv(os.path.join(data_path, 'time_windows.csv'))
     time_windows = time_windows[['A', 'B']].values
 
+    setup_cost = np.zeros((num_products + 1, num_products), dtype = np.int32)
+    setup_cost[0] += hiring_cost 
+
     params = { 
         'num_customers': num_customers,
         'num_nodes' : num_nodes,
@@ -212,7 +215,7 @@ def get_params_v2(data_type, read = True):
         ),  
         'service_time': unloading_time,
         'processing_cost': processing_cost,
-        'setup_cost': hiring_cost, 
+        'setup_cost': setup_cost, 
         'travel_cost': travel_cost, 
         'penalty': penalty,
         'early_delivery_penalty': 2,
