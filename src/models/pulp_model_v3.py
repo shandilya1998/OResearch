@@ -56,7 +56,7 @@ class PuLPModel:
             [
                 pulp.LpVariable('x{},{}'.format(p,q), cat = 'Binary') \
                     for q in range(self.params['num_products'])
-            ] for p in range(self.params['num_products'])
+            ] for p in range(self.params['num_products'] + 1)
         ])
         self.id['x'] = 'ProductProductionSequence'
         self.indices['x'] = (self.params['num_products'], self.params['num_products'])
@@ -139,8 +139,9 @@ class PuLPModel:
     def constraint1(self):
         for p in range(self.params['num_products']):
             self.model += pulp.lpSum([
-                self.x[q][p] for q in range(self.params['num_products']) if p!=q
+                self.x[q][p] for q in range(self.params['num_products'] + 1) if p!=q
             ]) == 1, 'ProductionSeqConstraint1,{},'.format(p)
+        for p in range(self.params['num_products']):
             self.model += pulp.lpSum([
                 self.x[p][q] for q in range(self.params['num_products']) if q!= p
             ]) == 1, 'ProductionSeqConstraint2,{}'.format(p)
