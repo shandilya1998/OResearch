@@ -7,6 +7,7 @@ import os
 import xlsxwriter
 import json
 import itertools
+import shutil
 
 class PuLPModel:
     def __init__(self, params):
@@ -21,13 +22,6 @@ class PuLPModel:
         print('Building Variables.')
         self.indices = {}
         self.id = {}
-        self.f = np.array(
-            [pulp.LpVariable(
-                'f{},'.format(p), lowBound = 0
-            ) for p in range(self.params['num_products'])]
-        )
-        self.id['f'] = 'ProductProductionFinishTime'
-        self.indices['f']  = (self.params['num_products'],)
 
         self.k = np.array([
             [
@@ -55,11 +49,11 @@ class PuLPModel:
         self.x = np.array([
             [
                 pulp.LpVariable('x{},{}'.format(p,q), cat = 'Binary') \
-                    for q in range(self.params['num_products'] + 1)
+                    for q in range(self.params['num_products'])
             ] for p in range(self.params['num_products'] + 1)
         ])
         self.id['x'] = 'ProductProductionSequence'
-        self.indices['x'] = (self.params['num_products'], self.params['num_products'])
+        self.indices['x'] = (self.params['num_products'] + 1, self.params['num_products'])
 
         self.y = np.array([
             [
@@ -118,8 +112,7 @@ class PuLPModel:
         print('Building Constraint.')
 
         lst_constraints = [
-            self.constraint1,
-            self.constraint2,
+            #self.constraint1,
             self.constraint3,
             self.constraint4,
             self.constraint6,
@@ -137,10 +130,10 @@ class PuLPModel:
             constraint()
 
     def constraint1(self):
-        for p in range(self.params['num_products']):
+        for q in range(self.params['num_products']):
             self.model += pulp.lpSum([
-                self.x[q][p] for q in range(self.params['num_products'] + 1) if p!=q
-            ]) == 1, 'ProductionSeqConstraint1,{},'.format(p)
+                self.x[p][q] for p in range(self.params['num_products'] + 1) if p!=q
+            ]) == 1, 'ProductionSeqConstraint1,{},'.format(q)
         for p in range(self.params['num_products'] + 1):
             self.model += pulp.lpSum([
                 self.x[p][q] for q in range(self.params['num_products']) if q!= p
@@ -172,9 +165,9 @@ class PuLPModel:
     def constraint6(self):
         for v in range(self.params['num_vehicles']):
             for h in range(self.params['num_trips']):
-                self.model += pulp.lpSum(self.params['demand'] * \
+                self.model += pulp.lpSum(self.params['demand'].flatten() * \
                     np.repeat(np.expand_dims(self.y[:, v, h], 1), \
-                        self.params['num_products'], 1)) <= \
+                        self.params['num_products'], 1).flatten()) <= \
                         self.params['vehicle_capacity'][v], 'VehicleCapacityConstraint{},{},'.format(
                             v,h
                         )
@@ -189,7 +182,8 @@ class PuLPModel:
                                 self.y[i+1,v,h] + self.y[j+1,v,h] <= 3, \
                                 'StartEndRoutingConstraint0_{},{},{},{},'.format(i,j,v,h)
 
-                            self.model += self.z[i+1,self.params['num_nodes'] - 1,v,h] + self.z[j+1,self.params['num_nodes'] - 1,v,h] + \
+                            self.model += self.z[i+1,self.params['num_nodes'] - 1,v,h] + \
+                                self.z[j+1,self.params['num_nodes'] - 1,v,h] + \
                                 self.y[i+1,v,h] + self.y[j+1,v,h] <= 3, \
                                 'StartEndRoutingConstraint1_{},{},{},{},'.format(i,j,v,h)
 
@@ -197,10 +191,18 @@ class PuLPModel:
             for v in range(self.params['num_vehicles']):
                 for h in range(self.params['num_trips']):
                     self.model += self.y[j+1,v,h] - pulp.lpSum(
-                        np.array([self.z[i,j+1,v,h] for i in range(1, self.params['num_nodes']) if i!=j+1])
+                        np.array(
+                            [self.z[i,j+1,v,h] \
+                            for i in range(self.params['num_nodes'] - 1) \
+                            if i!=j+1]
+                        )
                     ) == 0, 'MiddleRoutingConstraint1,{},{},{}'.format(j,v,h)
                     self.model += self.y[j+1,v,h] - pulp.lpSum(
-                        np.array([self.z[i,j+1,v,h] for i in range(self.params['num_nodes'] - 1) if i!=j+1])
+                        np.array(
+                            [self.z[j+1,i,v,h] \
+                            for i in range(1, self.params['num_nodes']) \
+                            if i!=j+1]
+                        )
                     ) == 0, 'MiddleRoutingConstraint{},{},{}'.format(j,v,h)
 
     def constraint8(self):
@@ -213,8 +215,8 @@ class PuLPModel:
         for v in range(self.params['num_vehicles']):
             for h in range(self.params['num_trips']):
                 self.model += self.k[v][h] - \
-                    pulp.lpSum(self.params['process_time'] * \ 
-                    self.params['demand']) -\
+                    pulp.lpSum(self.params['process_time'] * \
+                    self.params['demand']) - \
                     self.params['service_time'][0] >= 0, \
                     'StartTimeConstraint1,{},{}'.format(v,h)
 
@@ -287,6 +289,14 @@ class PuLPModel:
         return params
 
     def get_solution(self, dir_path):
+        if os.path.exists(os.path.join(dir_path)):
+            try:
+                shutil.rmtree(dir_path)
+            except OSError as e:
+                print("Error: %s - %s." % (e.filename, e.strerror))
+            os.mkdir(dir_path)
+        else:
+            os.mkdir(dir_path)
         solution = {
             v.name : v.varValue \
                 for v in self.model.variables()
