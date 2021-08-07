@@ -197,6 +197,7 @@ def get_params_v2(data_type, read = True):
 
     setup_cost = np.zeros((num_products + 1, num_products), dtype = np.int32)
     setup_cost[0] += hiring_cost 
+    setup_cost = setup_cost + setup_time
 
     params = { 
         'num_customers': num_customers,
