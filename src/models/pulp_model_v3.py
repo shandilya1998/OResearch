@@ -34,17 +34,17 @@ class PuLPModel:
 
         self.a = np.array([
             pulp.LpVariable('a{},'.format(i), lowBound = 0) \
-                for i in range(self.params['num_customers'])
+                for i in range(self.params['num_nodes'])
         ])
         self.id['a'] = 'ArrivalAtCustomerTime'
-        self.indices['a'] = (self.params['num_customers'],)
+        self.indices['a'] = (self.params['num_nodes'],)
 
         self.l = np.array([
             pulp.LpVariable('l{},'.format(i), lowBound = 0) \
-                for i in range(self.params['num_customers'])
+                for i in range(self.params['num_nodes'])
         ])
         self.id['l'] = 'TardinessAtCustomer'
-        self.indices['l'] = (self.params['num_customers'],)
+        self.indices['l'] = (self.params['num_nodes'],)
 
         self.x = np.array([
             [
@@ -140,8 +140,8 @@ class PuLPModel:
             ]) == 1, 'ProductionSeqConstraint2,{}'.format(p)
 
     def constraint3(self):
-        for i in range(self.params['num_customers']):
-            self.model += pulp.lpSum(self.y[i + 1, :, :].flatten()) == 1, \
+        for i in range(1, self.params['num_nodes'] - 1):
+            self.model += pulp.lpSum(self.y[i, :, :].flatten()) == 1, \
                 'MandatoryCustomerVisitConstraint{},'.format(i)
 
     def constraint4(self):
@@ -173,35 +173,35 @@ class PuLPModel:
                         )
 
     def constraint7(self):
-        for i in range(self.params['num_customers']):
-            for j in range(self.params['num_customers']):
+        for i in range(1, self.params['num_nodes'] - 1):
+            for j in range(1, self.params['num_nodes'] - 1):
                 for v in range(self.params['num_vehicles']):
                     for h in range(self.params['num_trips']):
                         if i != j:
-                            self.model += self.z[0,i+1,v,h] + self.z[0,j+1,v,h] + \
-                                self.y[i+1,v,h] + self.y[j+1,v,h] <= 3, \
+                            self.model += self.z[0,i,v,h] + self.z[0,j,v,h] + \
+                                self.y[i,v,h] + self.y[j,v,h] <= 3, \
                                 'StartEndRoutingConstraint0_{},{},{},{},'.format(i,j,v,h)
 
-                            self.model += self.z[i+1,self.params['num_nodes'] - 1,v,h] + \
-                                self.z[j+1,self.params['num_nodes'] - 1,v,h] + \
-                                self.y[i+1,v,h] + self.y[j+1,v,h] <= 3, \
+                            self.model += self.z[i,self.params['num_nodes'] - 1,v,h] + \
+                                self.z[j,self.params['num_nodes'] - 1,v,h] + \
+                                self.y[i,v,h] + self.y[j,v,h] <= 3, \
                                 'StartEndRoutingConstraint1_{},{},{},{},'.format(i,j,v,h)
 
-        for j in range(self.params['num_customers']):
-            for v in range(self.params['num_vehicles']):
+        for j in range(1, self.params['num_nodes'] - 1):
+            for v in range(1, self.params['num_vehicles']):
                 for h in range(self.params['num_trips']):
-                    self.model += self.y[j+1,v,h] - pulp.lpSum(
+                    self.model += self.y[j,v,h] - pulp.lpSum(
                         np.array(
-                            [self.z[i,j+1,v,h] \
+                            [self.z[i,j,v,h] \
                             for i in range(self.params['num_nodes'] - 1) \
-                            if i!=j+1]
+                            if i!=j]
                         )
                     ) == 0, 'MiddleRoutingConstraint1,{},{},{}'.format(j,v,h)
-                    self.model += self.y[j+1,v,h] - pulp.lpSum(
+                    self.model += self.y[j,v,h] - pulp.lpSum(
                         np.array(
-                            [self.z[j+1,i,v,h] \
+                            [self.z[j,i,v,h] \
                             for i in range(1, self.params['num_nodes']) \
-                            if i!=j+1]
+                            if i!=j]
                         )
                     ) == 0, 'MiddleRoutingConstraint{},{},{}'.format(j,v,h)
 
@@ -221,45 +221,45 @@ class PuLPModel:
                     'StartTimeConstraint1,{},{}'.format(v,h)
 
     def constraint10(self):
-        for j in range(self.params['num_customers']):
+        for j in range(1, self.params['num_nodes'] - 1):
             for v in range(self.params['num_vehicles']):
                 for h in range(self.params['num_trips'] - 1):
                     self.model += self.k[v][h + 1] - self.a[j] - \
-                        self.params['service_time'][j + 1] - \
-                        self.params['travel_time'][j + 1, self.params['num_nodes'] - 1] + \
-                        self.params['M'] * (1 - self.y[j + 1, v, h]) >= 0, \
+                        self.params['service_time'][j] - \
+                        self.params['travel_time'][j, self.params['num_nodes'] - 1] + \
+                        self.params['M'] * (1 - self.y[j, v, h]) >= 0, \
                         'StartTimeConstraint2,{},{},{},'.format(j,v,h)
 
     def constraint11(self):
-        for j in range(self.params['num_customers']):
+        for j in range(1, self.params['num_nodes'] - 1):
             for v in range(self.params['num_vehicles']):
                 for h in range(self.params['num_trips']):
                     self.model += self.a[j] - self.k[v][h] - \
-                        self.params['travel_time'][0][j + 1] + \
-                        self.params['M'] * (1 - self.y[j + 1][v][h]) >= 0, \
+                        self.params['travel_time'][0][j] + \
+                        self.params['M'] * (1 - self.y[j][v][h]) >= 0, \
                         'ArrivalTimeConstraint1,{},{},{}'.format(j,v,h)
 
     def constraint12(self):
-        for i in range(self.params['num_customers']):
-            for j in range(self.params['num_customers']):
+        for i in range(1, self.params['num_nodes'] - 1):
+            for j in range(1, self.params['num_nodes'] - 1):
                 for v in range(self.params['num_vehicles']):
                     for h in range(self.params['num_trips']):
                         if i != j:
                             self.model += self.a[j] - self.a[i] - \
-                                self.params['service_time'][i+1] - \
-                                self.params['travel_time'][i+1][j+1] + \
-                                self.params['M'] * (1 - self.z[i + 1][j + 1][v][h]) >=0 , \
+                                self.params['service_time'][i] - \
+                                self.params['travel_time'][i][j] + \
+                                self.params['M'] * (1 - self.z[i][j][v][h]) >=0 , \
                                 'ArrivalTimeConstraint1,{},{},{},{}'.format(i,j,v,h)
 
     def constraint13(self):
-        for i in range(self.params['num_customers']):
-            self.model += self.a[i] - self.params['time_windows'][i + 1][0] >= 0, \
+        for i in range(1, self.params['num_nodes'] - 1):
+            self.model += self.a[i] - self.params['time_windows'][i][0] >= 0, \
                 'ArrivalTimeConstraint3,{}'.format(i)
 
     def constraint14(self):
-        for i in range(self.params['num_customers']):
+        for i in range(1, self.params['num_nodes'] - 1):
             self.model += self.l[i] - self.a[i] + \
-                self.params['time_windows'][i+1][1] >= 0, \
+                self.params['time_windows'][i][1] >= 0, \
                 'TardinessConstraint{},'.format(i)
 
     def solve(self):

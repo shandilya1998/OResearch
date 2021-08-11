@@ -35,7 +35,6 @@ def get_params(data_type):
     print(num_customers)
     print('-----------------------')
     num_trips = int(num_customers / 2) - 1
-    num_batches = num_customers
     num_vehicles = len(vehicle_type)
     demand = np.array([
         [
@@ -89,7 +88,6 @@ def get_params(data_type):
         'num_customers': num_customers,
         'num_nodes' : num_nodes,
         'num_trips' : num_trips,
-        'num_batches' : num_batches,
         'num_products': num_products,
         'demand': demand,
         'setup_time': np.array([
@@ -156,7 +154,6 @@ def get_params_v2(data_type, read = True):
     print(num_customers)
     print('-----------------------')
     num_trips = int(num_customers / 2) - 1
-    num_batches = num_customers
     num_vehicles = len(vehicle_type)
     
     demand = np.array([
@@ -203,7 +200,6 @@ def get_params_v2(data_type, read = True):
         'num_customers': num_customers,
         'num_nodes' : num_nodes,
         'num_trips' : num_trips,
-        'num_batches' : num_batches,
         'num_products': num_products,
         'demand': demand,
         'setup_time': setup_time,
