@@ -92,8 +92,8 @@ def get_params(data_type):
         'demand': demand,
         'setup_time': np.array([
             [
-                random.uniform(1, 10) for q in range(num_products)
-            ] for p in range(num_products)
+                random.uniform(1, 10) for q in range(num_products + 1)
+            ] for p in range(num_products + 1)
         ]).astype(data_type),
         'process_time': process_time,
         'travel_time': travel_time,

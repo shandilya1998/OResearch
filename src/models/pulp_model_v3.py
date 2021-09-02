@@ -130,13 +130,13 @@ class PuLPModel:
             constraint()
 
     def constraint1(self):
-        for q in range(self.params['num_products']):
+        for q in range(self.params['num_products'] + 1):
             self.model += pulp.lpSum([
                 self.x[p][q] for p in range(self.params['num_products'] + 1) if p!=q
             ]) == 1, 'ProductionSeqConstraint1,{},'.format(q)
         for p in range(self.params['num_products'] + 1):
             self.model += pulp.lpSum([
-                self.x[p][q] for q in range(self.params['num_products']) if q!= p
+                self.x[p][q] for q in range(self.params['num_products'] + 1) if q!= p
             ]) == 1, 'ProductionSeqConstraint2,{}'.format(p)
 
     def constraint3(self):
