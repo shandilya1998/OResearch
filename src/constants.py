@@ -38,7 +38,7 @@ def get_params(data_type):
     num_vehicles = len(vehicle_type)
     demand = np.array([
         [
-            random.uniform(10, 200) for p in range(num_products)
+            random.uniform(10, 200) for p in range(num_products + 1)
         ] for i in range(num_nodes)
     ])
     for p in range(num_products):
@@ -121,7 +121,7 @@ def get_params(data_type):
     return params
 
 
-def get_params_v2(data_type, read = True):
+def get_params_v2(data_type, read = False):
     data_path = 'data'
     travel_time = pd.read_csv(
         os.path.join(data_path, TRAVEL_TIME),
@@ -158,23 +158,28 @@ def get_params_v2(data_type, read = True):
     
     demand = np.array([
         [
-            random.uniform(3, 10) for p in range(num_products)
+            random.uniform(3, 10) for p in range(num_products + 1)
         ] for i in range(num_nodes)
     ])
-    for p in range(num_products):
+    demand[:, 0] = 0
+    for p in range(num_products + 1):
         demand[0][p] = 0
         demand[num_nodes - 1][p] = 0
     demand = demand.astype(np.int32)
 
     unloading_time = np.sum(demand, axis = -1) * 0.2
+    loading_time = np.zeros_like(unloading_time)
+    loading_time[0] = 5
+    loading_time[-1] = 5
 
     process_time = np.array([
-        random.uniform(1, 3) for p in range(num_products)
+        random.uniform(1, 3) for p in range(num_products + 1)
     ]).astype(data_type)
+    process_time[0] = 0
 
     setup_time = np.array([
         [
-            random.uniform(1,5) for p in range(num_products)
+            random.uniform(1,5) for p in range(num_products + 1)
         ] for q in range(num_products + 1)
     ], dtype = np.int32)
     for p in range(num_products):
@@ -187,12 +192,21 @@ def get_params_v2(data_type, read = True):
     if read:
         demand = demand_info[products].values
         unloading_time = demand_info['Unloading Time'].values
-    loading_time = demand_info['Loading Time'].values
+        loading_time = demand_info['Loading Time'].values
 
     time_windows = pd.read_csv(os.path.join(data_path, 'time_windows.csv'))
     time_windows = time_windows[['A', 'B']].values
+    time_windows[0][1] = np.max(time_windows[:,0]) + np.sum(np.array([
+        process_time[p] * demand[:, p] \
+            for p in range(num_products + 1)
+    ])) + 10
 
-    setup_cost = np.zeros((num_products + 1, num_products), dtype = np.int32)
+    time_windows[num_nodes - 1][1] = np.max(time_windows[:,0]) + np.sum(np.array([
+        process_time[p] * demand[:, p] \
+            for p in range(num_products + 1)
+    ])) + 10
+
+    setup_cost = np.zeros((num_products + 1, num_products + 1), dtype = np.int32)
     setup_cost[0] += hiring_cost 
     setup_cost = setup_cost + setup_time
 

@@ -49,11 +49,14 @@ class PuLPModel:
         self.x = np.array([
             [
                 pulp.LpVariable('x{},{}'.format(p,q), cat = 'Binary') \
-                    for q in range(self.params['num_products'])
+                    for q in range(self.params['num_products'] + 1)
             ] for p in range(self.params['num_products'] + 1)
         ])
         self.id['x'] = 'ProductProductionSequence'
-        self.indices['x'] = (self.params['num_products'] + 1, self.params['num_products'])
+        self.indices['x'] = (
+            self.params['num_products'] + 1,
+            self.params['num_products'] + 1
+        )
 
         self.y = np.array([
             [
@@ -86,13 +89,19 @@ class PuLPModel:
         self.id['w'] = 'VehicleUsage'
         self.indices['w'] = (self.params['num_vehicles'], )
 
+        self.F = pulp.LpVariable('F', lowBound = 0)
+        self.id['F'] = 'TotalProductionTime'
+        self.indices['F'] = ()
+
         print('Building Objective.')
         self.mc_1 = pulp.LpAffineExpression(np.concatenate([
             np.array(list(zip(self.x.flatten(), self.params['setup_cost'].flatten()))),
         ]))
         self.mc_2 = self.params['processing_cost'] * \
-            np.sum(self.params['process_time'].flatten() * \
-            np.sum(self.params['demand'], 0).flatten())
+            np.sum(np.multiply(
+                self.params['process_time'].flatten(),
+                np.sum(self.params['demand'], 0).flatten()
+            ))
 
         self.dc = pulp.LpAffineExpression(np.concatenate([
             np.array(list(zip(self.w,
@@ -112,7 +121,7 @@ class PuLPModel:
         print('Building Constraint.')
 
         lst_constraints = [
-            #self.constraint1,
+            self.constraint1,
             self.constraint3,
             self.constraint4,
             self.constraint6,
@@ -165,10 +174,14 @@ class PuLPModel:
     def constraint6(self):
         for v in range(self.params['num_vehicles']):
             for h in range(self.params['num_trips']):
-                self.model += pulp.lpSum(self.params['demand'].flatten() * \
-                    np.repeat(np.expand_dims(self.y[:, v, h], 1), \
-                        self.params['num_products'], 1).flatten()) <= \
-                        self.params['vehicle_capacity'][v], 'VehicleCapacityConstraint{},{},'.format(
+                self.model += pulp.lpSum(np.multiply(
+                    self.params['demand'][1:-1],
+                    np.repeat(
+                        np.expand_dims(self.y[1:-1, v, h], 1),
+                        self.params['num_products'] + 1,
+                        1
+                    )).flatten()) <= self.params['vehicle_capacity'][v], \
+                        'VehicleCapacityConstraint{},{},'.format(
                             v,h
                         )
 
@@ -212,12 +225,16 @@ class PuLPModel:
                     'VehicleTripAssignmentConstraint{},{}'.format(v,h)
 
     def constraint9(self):
+        self.model += self.F - pulp.lpSum(np.multiply(
+            self.params['setup_time'],
+            self.x
+        ).flatten()) == np.sum(np.array([
+            self.params['process_time'][p] * self.params['demand'][:, p] \
+                for p in range(self.params['num_products'] + 1)
+        ])), 'TotalProductionTime Constraint'
         for v in range(self.params['num_vehicles']):
             for h in range(self.params['num_trips']):
-                self.model += self.k[v][h] - \
-                    pulp.lpSum(self.params['process_time'] * \
-                    self.params['demand']) - \
-                    self.params['service_time'][0] >= 0, \
+                self.model += self.k[v][h] - self.F >= 0, \
                     'StartTimeConstraint1,{},{}'.format(v,h)
 
     def constraint10(self):

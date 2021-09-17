@@ -1,1 +1,1 @@
-{"k": "VehicleTripDeliveryStartTime", "a": "ArrivalAtCustomerTime", "l": "TardinessAtCustomer", "x": "ProductProductionSequence", "y": "CustomerVehicleTripMap", "z": "DeliverySequence", "w": "VehicleUsage"}
+{"k": "VehicleTripDeliveryStartTime", "a": "ArrivalAtCustomerTime", "l": "TardinessAtCustomer", "x": "ProductProductionSequence", "y": "CustomerVehicleTripMap", "z": "DeliverySequence", "w": "VehicleUsage", "F": "TotalProductionTime"}
