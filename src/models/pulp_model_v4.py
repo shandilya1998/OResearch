@@ -221,7 +221,11 @@ class PuLPModel:
         self.model += self.F - pulp.lpSum(np.multiply(
             self.params['setup_time'],
             self.x
-        ).flatten()) == np.sum(np.array([
+        ).flatten() - np.diag(np.array([
+                self.params['setup_time'][p][q] * self.x[p][q] \
+                    for q in range(self.params['num_products']+1) \
+                    for p in range(self.params['num_products']+1) if p == q
+        ])).flatten()) == np.sum(np.array([
             self.params['process_time'][p] * self.params['demand'][:, p] \
                 for p in range(self.params['num_products'] + 1)
         ])), 'TotalProductionTime Constraint'
