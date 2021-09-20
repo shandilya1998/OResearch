@@ -2,4 +2,4 @@
 #from src.models.model_v2 import MIPModel
 #from src.models.cpsat_model import CPSATModel
 #from src.models.model import MIPModel
-from src.models.pulp_model_v4 import PuLPModel
+from src.models.pulp_model_v3 import PuLPModel

@@ -226,7 +226,7 @@ def get_params_v2(data_type, read = False):
         'vehicle_capacity': np.array(
             [vehicle_type_capacity[t] for t in vehicle_type]
         ),  
-        'service_time': unloading_time,
+        'service_time': unloading_time + loading_time,
         'processing_cost': processing_cost,
         'setup_cost': setup_cost, 
         'travel_cost': travel_cost, 
@@ -238,7 +238,7 @@ def get_params_v2(data_type, read = False):
         'M': data_type(1e4),
         'large_int' : data_type(1e5),
         'pulp_solver' : 'GUROBI',
-        'out_path' : 'assets/generated/model4'
+        'out_path' : 'assets/generated/model3'
     }   
     return params
 
