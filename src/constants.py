@@ -206,8 +206,10 @@ def get_params_v2(data_type, read = False):
             for p in range(num_products + 1)
     ])) + 10
 
-    setup_cost = np.zeros((num_products + 1, num_products + 1), dtype = np.int32)
-    setup_cost[0] += hiring_cost 
+    setup_cost = np.random.randint(
+        0, 5,
+        size = (num_products + 1, num_products + 1))
+    setup_cost[0] += hiring_cost
     setup_cost = setup_cost + setup_time
 
     params = { 
@@ -236,7 +238,7 @@ def get_params_v2(data_type, read = False):
         'M': data_type(1e4),
         'large_int' : data_type(1e5),
         'pulp_solver' : 'GUROBI',
-        'out_path' : 'assets/generated/model3'
+        'out_path' : 'assets/generated/model4'
     }   
     return params
 

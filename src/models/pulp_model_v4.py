@@ -71,16 +71,12 @@ class PuLPModel:
 
         self.z = np.array([
             [
-                [
-                    [
-                        pulp.LpVariable('z{},{},{},{}'.format(i,j,v,h), cat = 'Binary') \
-                            for h in range(self.params['num_trips'])
-                    ] for v in range(self.params['num_vehicles'])
-                ] for j in range(self.params['num_nodes'])
+                pulp.LpVariable('z{},{},'.format(i,j), cat = 'Binary') \
+                    for j in range(self.params['num_nodes'])
             ] for i in range(self.params['num_nodes'])
         ])
         self.id['z'] = 'DeliverySequence'
-        self.indices['z'] = (self.params['num_nodes'], self.params['num_nodes'], self.params['num_vehicles'], self.params['num_trips'])
+        self.indices['z'] = (self.params['num_nodes'], self.params['num_nodes'])
 
         self.w = np.array([
             pulp.LpVariable('w{},'.format(i), cat = 'Binary') \
@@ -105,14 +101,10 @@ class PuLPModel:
 
         self.dc = pulp.LpAffineExpression(np.concatenate([
             np.array(list(zip(self.w,
-                [self.params['vehicle_cost']]*self.params['num_vehicles']))),
-            np.array(list(zip(self.z.flatten(), np.repeat(
-                np.expand_dims(
-                    np.repeat(np.expand_dims(
-                        self.params['travel_time'], -1
-                    ), self.params['num_vehicles']), -1
-                ), self.params['num_trips']
-            ).flatten())))
+                [self.params['vehicle_cost']]*self.params['num_vehicles'])
+            )), np.array(list(zip(
+                self.z.flatten(), self.params['travel_time'].flatten()
+            )))
         ], 0))
 
         self.pc = np.sum(self.l * self.params['late_delivery_penalty'])
@@ -192,12 +184,12 @@ class PuLPModel:
                 for v in range(self.params['num_vehicles']):
                     for h in range(self.params['num_trips']):
                         if i != j:
-                            self.model += self.z[0,i,v,h] + self.z[0,j,v,h] + \
+                            self.model += self.z[0,i] + self.z[0,j] + \
                                 self.y[i,v,h] + self.y[j,v,h] <= 3, \
                                 'StartEndRoutingConstraint0_{},{},{},{},'.format(i,j,v,h)
 
-                            self.model += self.z[i,self.params['num_nodes'] - 1,v,h] + \
-                                self.z[j,self.params['num_nodes'] - 1,v,h] + \
+                            self.model += self.z[i,self.params['num_nodes'] - 1] + \
+                                self.z[j,self.params['num_nodes'] - 1] + \
                                 self.y[i,v,h] + self.y[j,v,h] <= 3, \
                                 'StartEndRoutingConstraint1_{},{},{},{},'.format(i,j,v,h)
 
@@ -206,14 +198,14 @@ class PuLPModel:
                 for h in range(self.params['num_trips']):
                     self.model += self.y[j,v,h] - pulp.lpSum(
                         np.array(
-                            [self.z[i,j,v,h] \
+                            [self.z[i,j] \
                             for i in range(self.params['num_nodes'] - 1) \
                             if i!=j]
                         )
                     ) == 0, 'MiddleRoutingConstraint1,{},{},{}'.format(j,v,h)
                     self.model += self.y[j,v,h] - pulp.lpSum(
                         np.array(
-                            [self.z[j,i,v,h] \
+                            [self.z[j,i] \
                             for i in range(1, self.params['num_nodes']) \
                             if i!=j]
                         )
@@ -266,7 +258,7 @@ class PuLPModel:
                             self.model += self.a[j] - self.a[i] - \
                                 self.params['service_time'][i] - \
                                 self.params['travel_time'][i][j] + \
-                                self.params['M'] * (1 - self.z[i][j][v][h]) >=0 , \
+                                self.params['M'] * (1 - self.z[i][j]) >=0 , \
                                 'ArrivalTimeConstraint1,{},{},{},{}'.format(i,j,v,h)
 
     def constraint12(self):
