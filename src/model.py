@@ -2,6 +2,18 @@ import pulp as pl
 import numpy as np
 import os
 import shutil
+import json
+
+class NpEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        elif isinstance(obj, np.floating):
+            return float(obj)
+        elif isinstance(obj, np.ndarray):
+            return obj.tolist()
+        else:
+            return super(NpEncoder, self).default(obj)
 
 class MVRPModel:
     def __init__(self, params):
@@ -13,7 +25,7 @@ class MVRPModel:
         self.y = np.array([
             [
                 [
-                    pl.LpVariable('y_{}_{}_{}'.format(i, v, h), 0, 1) for h in range(self.params['num_trips'])
+                    pl.LpVariable('y_{}_{}_{}'.format(i, v, h), 0, 1, pl.LpInteger) for h in range(self.params['num_trips'])
                 ] for v in range(self.params['num_vehicles'])
             ] for i in range(self.params['num_customers'] + 1)
         ])
@@ -22,7 +34,7 @@ class MVRPModel:
             [
                 [
                     [
-                        pl.LpVariable('z_{}_{}_{}_{}'.format(i, j, v, h)) for h in range(self.params['num_trips'])
+                        pl.LpVariable('z_{}_{}_{}_{}'.format(i, j, v, h), 0, 1, pl.LpInteger) for h in range(self.params['num_trips'])
                     ] for v in range(self.params['num_vehicles'])
                 ] for j in range(self.params['num_customers'] + 1)
             ] for i in range(self.params['num_customers'] + 1)
@@ -41,6 +53,41 @@ class MVRPModel:
         self.T = np.array([
             pl.LpVariable('T_{}'.format(i), 0) for i in range(1, self.params['num_customers'] + 1)
         ])
+
+    def save(self, logdir):
+        y = np.array([
+            [
+                [
+                    self.y[i, v, h].value() for h in range(self.params['num_trips'])
+                ] for v in range(self.params['num_vehicles'])
+            ] for i in range(self.params['num_customers'] + 1)
+        ])
+        z = np.array([
+            [
+                [
+                    [
+                        self.z[i, j, v, h].value() for h in range(self.params['num_trips'])
+                    ] for v in range(self.params['num_vehicles'])
+                ] for j in range(self.params['num_customers'] + 1)
+            ] for i in range(self.params['num_customers'] + 1)
+        ])
+        k = np.array([
+            [
+                self.k[v, h].value() for h in range(self.params['num_trips'])
+            ] for v in range(self.params['num_vehicles'])
+        ])
+        D = np.array([self.D[i].value() for i in range(self.params['num_customers'])])
+        T = np.array([self.T[i].value() for i in range(self.params['num_customers'])])
+
+        np.savez(
+            os.path.join(logdir, 'solution.npz'),
+            y = y,
+            z = z,
+            k = k,
+            D = D,
+            T = T
+        )
+        self.problem.to_json(os.path.join(logdir, 'problem.json'), cls=NpEncoder)
 
     def create_constraints(self):
         # Customer must be visited exactly once
@@ -86,8 +133,6 @@ class MVRPModel:
                     v, h
                 )
 
-
-
         # Minimum Delivery Start Time Constraint
         for v in range(self.params['num_vehicles']):
             for h in range(self.params['num_trips']):
@@ -100,16 +145,16 @@ class MVRPModel:
             self.problem += self.k[v, 1] >= self.params['F'] + self.params['service_time'][0], 'FirstTripDeliveryConstraint_{}'.format(v)
 
         # Consecutive Trip Start Time Constraint
-        for i in range(self.params['num_customers']):
+        for i in range(1, self.params['num_customers'] + 1):
             for v in range(self.params['num_vehicles']):
                 for h in range(self.params['num_trips'] - 1):
-                    self.problem += self.k[v, h + 1] - self.D[i] - self.params['service_time'][i + 1] - self.params['travel_time'][i, 0] - self.params['service_time'][0] + self.params['M'] * (1 - self.y[i, v, h]) >= 0, 'ConsecutiveTripStartTimeConstraint_{}_{}_{}'.format(
+                    self.problem += self.k[v, h + 1] - self.D[i - 1] - self.params['service_time'][i] - self.params['travel_time'][i, 0] - self.params['service_time'][0] + self.params['M'] * (1 - self.y[i, v, h]) >= 0, 'ConsecutiveTripStartTimeConstraint_{}_{}_{}'.format(
                                 i, v, h
                             )
 
         # Lower Time Window Constraint
         for i in range(self.params['num_customers'] - 1):
-            self.problem += self.D[i] >= self.params['time_window'][0], 'LowerTimeWindowConstraint_{}'.format(i)
+            self.problem += self.D[i] >= self.params['time_window'][0, i], 'LowerTimeWindowConstraint_{}'.format(i)
 
         # First Customer Delivery Time Constraint
         for i in range(self.params['num_customers'] - 1):
@@ -128,8 +173,8 @@ class MVRPModel:
                                 )
 
         # Upper Time Window Constraint
-        for i in range(1, self.params['num_customers']):
-            self.problem += self.T[i] - self.D[i] + self.params['time_window'][1, i] >= 0, 'UpperTimeWindowConstraint_{}'.format(i)
+        for i in range(self.params['num_customers'] - 1):
+            self.problem += self.T[i] - self.D[i] + self.params['time_window'][1, i + 1] >= 0, 'UpperTimeWindowConstraint_{}'.format(i)
 
     def create_objective(self):
         dc1 = self.params['c1'] * np.sum(self.z[0, 1:])
@@ -148,7 +193,7 @@ class MVRPModel:
 
         pc = self.params['c3'] * np.sum(self.T)
 
-        self.problem ++ dc1 + dc2 + pc, 'Objective'
+        self.problem += dc1 + dc2 + pc, 'Objective'
 
     def setup(self): 
         self.create_variables()
@@ -163,4 +208,7 @@ class MVRPModel:
             shutil.rmtree(logdir)
         os.mkdir(logdir)
 
+    def print(self):
+        for v in self.problem.variables():
+            print(v.name, "=", v.varValue)
 

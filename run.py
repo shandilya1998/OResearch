@@ -6,3 +6,6 @@ model = MVRPModel(params=params)
 
 # Solve Problem
 model.solve()
+
+logdir = 'assets/generated/model'
+model.save(logdir=logdir)
