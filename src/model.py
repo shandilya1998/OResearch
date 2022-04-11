@@ -85,7 +85,8 @@ class MVRPModel:
             z = z,
             k = k,
             D = D,
-            T = T
+            T = T,
+            **self.params
         )
         self.problem.to_json(os.path.join(logdir, 'problem.json'), cls=NpEncoder)
 
